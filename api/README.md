@@ -38,6 +38,7 @@ Three e2e suites, each on its own in-memory database:
 - `api.e2e-spec.ts`: problem+json errors, locations, weight classes, the board falling back to reference prices with labels and ETag, OTP sign-in with wrong-code counting and lockout, per-phone rate limit, refresh rotation and family revocation, profile and roles.
 - `farms.e2e-spec.ts`: farms and lots with Idempotency-Key replay and mismatch, If-Match (428, 409 with the server copy), weight class derivation, vaccinations, signed photo and document uploads with magic-byte checks, document registration, the offline sync batch with temporary ids and replay.
 - `admin.e2e-spec.ts`: role guard, verification queue and case, document review and signed file view, verify and reject with the note shown to the user, reference prices with large-change flag and all-or-nothing CSV import, restricted zones, snapshot refresh, audit log.
+- `admin-auth.e2e-spec.ts`: console sign-in with authenticator enrolment, no email enumeration, lockout after five failures, password change ending other sessions, step tokens rejected as sessions; scheduler jobs run and are recorded.
 
 ## Layout
 
@@ -64,6 +65,20 @@ Three e2e suites, each on its own in-memory database:
 - SQL is written once and must run on both engines: no PostGIS functions outside the columns that are typed by the `geo_*` domains, cast dates and numerics to text in `select` lists when the value crosses the wire.
 - Constructor injection uses explicit `@Inject(...)` tokens so the code does not depend on decorator metadata emission.
 
+## Admin console sign-in
+
+Staff sign in with work email, password and a 6-digit authenticator code (`/admin/auth/login`, then `/admin/auth/totp`). There is no self-registration. Create or reset an admin from a machine with database access:
+
+```bash
+npm run admin:create -- --phone +639170000001 --email a.reyes@example.ph --name "A. Reyes" --password '<at least 12 characters>'
+```
+
+The authenticator secret is issued on the first sign-in and confirmed by the first valid code. Five failed attempts lock the account for 15 minutes. This implements decision 5 as assumed in the wireframes; switch to phone OTP on a whitelist if staff prefer.
+
+## Scheduled jobs
+
+The process with `SCHEDULER_ENABLED=true` (default) recomputes price snapshots for yesterday and today at 05:00 Asia/Manila (`SNAPSHOT_HOUR_MANILA`) and purges expired idempotency keys, OTP challenges and dead refresh tokens every hour. Every run is written to `job_runs`. Run exactly one such node, or set it to `false` everywhere and call `POST /admin/price-snapshots/refresh` from the platform's cron.
+
 ## Not built yet (Phase 1 backlog)
 
-Admin sign-in with email, password and authenticator (decision 5; admins currently sign in by phone OTP like everyone else, and the admin role is granted in the database), the nightly snapshot and idempotency-purge scheduler, push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration tool.
+Push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration tool, on-settle snapshot refresh (Phase 2).

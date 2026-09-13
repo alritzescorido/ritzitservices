@@ -326,7 +326,7 @@ Only planned in outline; the go/no-go shapes it.
 | 2 | Backend stack: NestJS or Laravel | Tech lead | End of week 1 | Assumed NestJS on 13 Sep 2026 (Node tooling on hand, first contract slice built). Reverse before week 3 if hiring says Laravel |
 | 3 | Deposit model for the pilot: yes, behind a flag, or no | Product with counsel | Week 6 | Proposed in `docs/payments-paymongo.md` |
 | 4 | Public price board without login | Product | End of week 2 | Open, API assumes public |
-| 5 | Admin sign-in method (email plus authenticator, or phone OTP on a whitelist) | Tech lead | Week 3 | Assumed email plus authenticator in wireframes |
+| 5 | Admin sign-in method (email plus authenticator, or phone OTP on a whitelist) | Tech lead | Week 3 | Built as email, password and authenticator on 13 Sep 2026; confirm or switch before the console UI starts |
 | 6 | Deposit size and cap, grace windows | Product from field data | Week 2, revisit week 14 | Proposed 10%, ₱2,000 to ₱20,000, 2 hours |
 | 7 | Weight tolerance before dispute | Product with vet office | Week 2 | Proposed 3% |
 | 8 | Who pays the hauler and the deposit fee | Product | Week 6 | Proposed: buyer pays hauler direct, platform absorbs deposit fee |
