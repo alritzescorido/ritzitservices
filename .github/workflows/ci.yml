@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contract:
+    name: API contract lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run api:lint
+
+  db-pglite:
+    name: SQL tests (PGlite, no PostGIS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:test
+
+  api:
+    name: API type check and e2e (in-memory PostgreSQL)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit -p tsconfig.json
+      - run: npm run lint
+      - run: npm run test:e2e
+
+  db-postgis:
+    name: SQL tests and seeds (PostgreSQL 15 + PostGIS)
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgis/postgis:15-3.4
+        env:
+          POSTGRES_USER: lpb
+          POSTGRES_PASSWORD: lpb
+          POSTGRES_DB: lpb
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lpb -d lpb"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      PGPASSWORD: lpb
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install psql
+        run: sudo apt-get update -q && sudo apt-get install -y -q postgresql-client
+      - name: Schema and scenario tests
+        run: PSQL="psql -v ON_ERROR_STOP=1 -h localhost -U lpb" bash db/tests/run.sh
+      - name: PSGC seed loads and is idempotent
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U lpb -d lpb_test -q -f db/seed/locations.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U lpb -d lpb_test -q -f db/seed/locations.sql
+          psql -h localhost -U lpb -d lpb_test -tAc "select level, count(*) from locations group by level order by 1"

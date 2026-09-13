@@ -1,0 +1,24 @@
+# Local PostgreSQL + PostGIS for schema work and the SQL test suite.
+#   docker compose -f db/docker-compose.yml up -d
+#   bash db/tests/run.sh
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: lpb-db
+    environment:
+      POSTGRES_USER: lpb
+      POSTGRES_PASSWORD: lpb
+      POSTGRES_DB: lpb
+      TZ: Asia/Manila
+      PGTZ: Asia/Manila
+    ports:
+      - "5432:5432"
+    volumes:
+      - lpb-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lpb -d lpb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  lpb-pgdata:

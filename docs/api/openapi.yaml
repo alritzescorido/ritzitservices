@@ -1,0 +1,1637 @@
+openapi: 3.1.0
+info:
+  title: Livestock Price Board API
+  version: 0.1.0-phase1
+  summary: Phase 1 contract. Auth, farm and herd records, price board, admin verification and reference prices.
+  description: |
+    Stack-agnostic contract for the Phase 1 build (weeks 3 to 8). NestJS or Laravel
+    can implement it unchanged. Phase 2 (listings, offers, deals) and Phase 3
+    (shipments) will be added as separate tag groups without breaking these paths.
+
+    Conventions
+    - All responses are JSON. Errors use RFC 9457 `application/problem+json`.
+    - Every mutating request from a mobile client carries `Idempotency-Key` so an
+      offline queue can retry safely. Same key + same body returns the original
+      response; same key + different body returns 422.
+    - Lists are cursor paginated: `?cursor=&limit=` in, `next_cursor` out.
+    - Money is a decimal string in Philippine pesos, e.g. "185.50". Never a float.
+    - Weights are decimal strings in kilograms.
+    - Timestamps are RFC 3339 UTC. Dates are `YYYY-MM-DD`.
+    - Locations are PSGC codes (text). The client never sends free-text place names.
+    - Every price returned carries `source`, `location_code` and `sample_count`.
+      A client must display all three. A bare number is a defect.
+    - Records that can be edited offline (farms, lots) carry `version`. PATCH must
+      send `If-Match: <version>`; a stale version returns 409 with the server copy.
+
+    Public board
+    - `/prices/*`, `/locations/*` and `/weight-classes` are readable without a token,
+      rate limited by IP. This is a product decision still open (proposal, "Decisions
+      needed"). To make the board private, remove `security: []` from those
+      operations; nothing else changes.
+  contact:
+    name: Livestock Price Board
+servers:
+  - url: https://api.staging.example.ph/v1
+    description: Staging
+  - url: https://api.example.ph/v1
+    description: Production
+
+tags:
+  - name: Auth
+    description: Phone number and one-time password login.
+  - name: Me
+    description: The signed-in user, roles, documents, devices, uploads.
+  - name: Locations
+    description: PSGC location tree. Public.
+  - name: Farms
+  - name: Lots
+    description: Livestock lots, vaccination records, weight classes.
+  - name: Prices
+    description: Running price board. Public.
+  - name: Sync
+    description: Offline batch upload for mobile.
+  - name: Admin
+    description: Verification queue, reference prices, restricted zones, audit log. Admin role only.
+  - name: Ops
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # ------------------------------------------------------------------ Auth
+  /auth/otp/request:
+    post:
+      tags: [Auth]
+      operationId: requestOtp
+      summary: Send a one-time password by SMS
+      security: []
+      description: |
+        Rate limit: 3 per phone per 10 minutes, 10 per IP per hour. The response
+        is identical whether or not the phone is registered, to avoid enumeration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:
+                  $ref: '#/components/schemas/PhoneE164'
+      responses:
+        '202':
+          description: Challenge created and SMS queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [challenge_id, expires_in_seconds, resend_after_seconds]
+                properties:
+                  challenge_id: { type: string, format: uuid }
+                  expires_in_seconds: { type: integer, example: 300 }
+                  resend_after_seconds: { type: integer, example: 60 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      operationId: verifyOtp
+      summary: Exchange the code for tokens
+      security: []
+      description: |
+        Five wrong codes invalidate the challenge. A new user is created on first
+        successful verification with no roles; the client then calls `POST /me/roles`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge_id, code]
+              properties:
+                challenge_id: { type: string, format: uuid }
+                code: { type: string, pattern: '^[0-9]{6}$' }
+                device:
+                  $ref: '#/components/schemas/DeviceInfo'
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          description: Wrong or expired code.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '423':
+          description: Challenge locked after too many attempts. Request a new one.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Rotate the refresh token
+      security: []
+      description: Refresh tokens are single use. Reuse of a consumed token revokes the whole family.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: New pair.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Revoke this device's refresh token
+      responses:
+        '204': { description: Revoked. }
+
+  # ------------------------------------------------------------------ Me
+  /me:
+    get:
+      tags: [Me]
+      operationId: getMe
+      summary: Current user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+    patch:
+      tags: [Me]
+      operationId: updateMe
+      summary: Update name or language
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name: { type: string, minLength: 2, maxLength: 120 }
+                preferred_lang: { $ref: '#/components/schemas/LangCode' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /me/roles:
+    post:
+      tags: [Me]
+      operationId: addMyRole
+      summary: Add farmer, buyer or hauler role
+      description: |
+        `admin` cannot be self-granted and returns 403. Adding a role does not
+        verify it; verification is per user and reviewed by admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [farmer, buyer, hauler]
+      responses:
+        '200':
+          description: Role added (idempotent).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /me/documents:
+    get:
+      tags: [Me]
+      operationId: listMyDocuments
+      summary: My uploaded documents and review status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/UserDocument' }
+    post:
+      tags: [Me]
+      operationId: registerMyDocument
+      summary: Register an uploaded document
+      description: |
+        Two steps. First `POST /uploads` to get a pre-signed PUT URL and `storage_key`,
+        upload the file directly to storage, then call this with the key.
+        Documents are never served by URL; admin fetches them through `/admin/documents/{id}/file`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doc_type, storage_key]
+              properties:
+                doc_type: { $ref: '#/components/schemas/DocType' }
+                storage_key: { type: string }
+      responses:
+        '201':
+          description: Created, status pending.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserDocument' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /me/devices:
+    post:
+      tags: [Me]
+      operationId: registerDevice
+      summary: Register a push token for this device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceInfo' }
+      responses:
+        '204': { description: Stored. }
+
+  /uploads:
+    post:
+      tags: [Me]
+      operationId: createUpload
+      summary: Get a pre-signed upload URL
+      description: |
+        Purpose controls the bucket prefix and allowed types. Max 10 MB for documents,
+        5 MB for photos. The server re-checks the object's content type after upload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose, content_type, byte_size]
+              properties:
+                purpose:
+                  type: string
+                  enum: [user_document, farm_photo, lot_photo, vaccination_doc]
+                content_type:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp, application/pdf]
+                byte_size: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Upload slot.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [storage_key, upload_url, expires_at]
+                properties:
+                  storage_key: { type: string }
+                  upload_url: { type: string, format: uri, description: Pre-signed PUT URL. }
+                  expires_at: { type: string, format: date-time }
+                  headers:
+                    type: object
+                    additionalProperties: { type: string }
+                    description: Headers the client must send with the PUT.
+        '413':
+          description: Too large.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  # ------------------------------------------------------------------ Locations
+  /locations:
+    get:
+      tags: [Locations]
+      operationId: listLocations
+      summary: Children of a location, or top-level regions
+      security: []
+      parameters:
+        - name: parent
+          in: query
+          description: PSGC code of the parent. Omit for regions.
+          schema: { $ref: '#/components/schemas/PsgcCode' }
+        - name: level
+          in: query
+          schema: { $ref: '#/components/schemas/LocationLevel' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK. Cache-Control public, max-age 86400. Supports ETag.
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Location' }
+                  next_cursor: { type: [string, 'null'] }
+
+  /locations/search:
+    get:
+      tags: [Locations]
+      operationId: searchLocations
+      summary: Search municipalities and barangays by name
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 60 }
+        - name: level
+          in: query
+          schema: { $ref: '#/components/schemas/LocationLevel' }
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Best matches, each with its ancestor names for display.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/LocationWithPath' }
+
+  /locations/nearest:
+    get:
+      tags: [Locations]
+      operationId: nearestBarangay
+      summary: Barangay for a GPS fix
+      security: []
+      description: Used at farm registration to pre-fill the location. The farmer confirms it.
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema: { type: number, minimum: 4, maximum: 22 }
+        - name: lng
+          in: query
+          required: true
+          schema: { type: number, minimum: 116, maximum: 127 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocationWithPath' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /locations/{psgc_code}:
+    get:
+      tags: [Locations]
+      operationId: getLocation
+      summary: One location with its ancestors
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PsgcPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocationWithPath' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ------------------------------------------------------------------ Farms
+  /farms:
+    get:
+      tags: [Farms]
+      operationId: listMyFarms
+      summary: Farms I own
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Farm' }
+    post:
+      tags: [Farms]
+      operationId: createFarm
+      summary: Register a farm
+      description: Requires the farmer role. Verification is not required to keep records, only to list stock (Phase 2).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FarmInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Farm' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /farms/{farm_id}:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+    get:
+      tags: [Farms]
+      operationId: getFarm
+      summary: One farm with lot summary
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Farm' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Farms]
+      operationId: updateFarm
+      summary: Update a farm
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FarmInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Farm' }
+        '409': { $ref: '#/components/responses/VersionConflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [Farms]
+      operationId: deleteFarm
+      summary: Archive a farm
+      description: Soft delete. Refused with 409 if the farm has an active listing (Phase 2).
+      responses:
+        '204': { description: Archived }
+        '409':
+          description: Farm has active listings.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  # ------------------------------------------------------------------ Lots
+  /farms/{farm_id}/lots:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+    get:
+      tags: [Lots]
+      operationId: listLots
+      summary: Lots on a farm
+      parameters:
+        - name: species
+          in: query
+          schema: { $ref: '#/components/schemas/Species' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Lot' }
+    post:
+      tags: [Lots]
+      operationId: createLot
+      summary: Add a lot
+      description: |
+        `weight_class_id` is derived server-side from species and `avg_weight_kg`
+        unless the client sends one explicitly. The response always includes it.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LotInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lot' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /lots/{lot_id}:
+    parameters:
+      - $ref: '#/components/parameters/LotId'
+    get:
+      tags: [Lots]
+      operationId: getLot
+      summary: One lot with vaccinations and the board price for its class
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Lot'
+                  - type: object
+                    properties:
+                      vaccinations:
+                        type: array
+                        items: { $ref: '#/components/schemas/Vaccination' }
+                      board_price:
+                        $ref: '#/components/schemas/RunningPrice'
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Lots]
+      operationId: updateLot
+      summary: Update head count, weight, notes
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LotInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lot' }
+        '409': { $ref: '#/components/responses/VersionConflict' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [Lots]
+      operationId: deleteLot
+      summary: Remove a lot
+      responses:
+        '204': { description: Removed }
+        '409':
+          description: Lot has an active listing.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /lots/{lot_id}/vaccinations:
+    parameters:
+      - $ref: '#/components/parameters/LotId'
+    post:
+      tags: [Lots]
+      operationId: addVaccination
+      summary: Record a vaccination
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VaccinationInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vaccination' }
+
+  /weight-classes:
+    get:
+      tags: [Lots]
+      operationId: listWeightClasses
+      summary: Weight bands per species
+      security: []
+      parameters:
+        - name: species
+          in: query
+          schema: { $ref: '#/components/schemas/Species' }
+      responses:
+        '200':
+          description: OK. Cache-Control public, max-age 86400.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/WeightClass' }
+
+  # ------------------------------------------------------------------ Prices
+  /prices/board:
+    get:
+      tags: [Prices]
+      operationId: getBoard
+      summary: Today's running prices for one municipality
+      security: []
+      description: |
+        The main price board screen. One row per species and weight class, each
+        resolved through the fallback ladder (municipality, province, reference).
+        Backed by `running_price()` over the snapshot table. Never reads raw deals.
+        Cache-Control public, max-age 300, with ETag so an offline client can revalidate cheaply.
+      parameters:
+        - name: municipality_code
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/PsgcCode' }
+        - name: species
+          in: query
+          schema: { $ref: '#/components/schemas/Species' }
+        - name: as_of
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [municipality, province, as_of, items]
+                properties:
+                  municipality: { $ref: '#/components/schemas/Location' }
+                  province: { $ref: '#/components/schemas/Location' }
+                  as_of: { type: string, format: date }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/BoardRow' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /prices/running:
+    get:
+      tags: [Prices]
+      operationId: getRunningPrice
+      summary: One running price for a species and weight class
+      security: []
+      parameters:
+        - name: municipality_code
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/PsgcCode' }
+        - name: species
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Species' }
+        - name: weight_class_id
+          in: query
+          schema: { type: integer }
+        - name: as_of
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunningPrice' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /prices/history:
+    get:
+      tags: [Prices]
+      operationId: getPriceHistory
+      summary: Daily snapshots for a sparkline
+      security: []
+      parameters:
+        - name: location_code
+          in: query
+          required: true
+          description: Municipality or province PSGC code.
+          schema: { $ref: '#/components/schemas/PsgcCode' }
+        - name: species
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Species' }
+        - name: weight_class_id
+          in: query
+          schema: { type: integer }
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 7, maximum: 365, default: 30 }
+      responses:
+        '200':
+          description: One point per day where a snapshot exists. Gaps are not filled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unit: { $ref: '#/components/schemas/PriceUnit' }
+                  points:
+                    type: array
+                    items:
+                      type: object
+                      required: [date, median_price, sample_count]
+                      properties:
+                        date: { type: string, format: date }
+                        median_price: { $ref: '#/components/schemas/Money' }
+                        low_price: { $ref: '#/components/schemas/MoneyNullable' }
+                        high_price: { $ref: '#/components/schemas/MoneyNullable' }
+                        sample_count: { type: integer }
+
+  # ------------------------------------------------------------------ Sync
+  /sync:
+    post:
+      tags: [Sync]
+      operationId: syncBatch
+      summary: Apply a queue of offline mutations
+      description: |
+        The mobile app records farm and lot edits offline and replays them here in
+        order. Each operation has its own idempotency key and, for updates, the
+        `version` the client last saw. The server applies what it can and returns a
+        per-operation result; a conflict returns the server copy so the app can show
+        a merge screen instead of silently overwriting. Max 200 operations per call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operations]
+              properties:
+                operations:
+                  type: array
+                  maxItems: 200
+                  items: { $ref: '#/components/schemas/SyncOperation' }
+      responses:
+        '200':
+          description: Per-operation outcomes, same order as the request.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/SyncResult' }
+
+  # ------------------------------------------------------------------ Admin
+  /admin/verification-queue:
+    get:
+      tags: [Admin]
+      operationId: adminVerificationQueue
+      summary: Users with pending documents, oldest first
+      parameters:
+        - name: role
+          in: query
+          schema: { $ref: '#/components/schemas/Role' }
+        - name: province_code
+          in: query
+          schema: { $ref: '#/components/schemas/PsgcCode' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/VerificationCase' }
+                  next_cursor: { type: [string, 'null'] }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/users/{user_id}:
+    get:
+      tags: [Admin]
+      operationId: adminGetUser
+      summary: User detail with documents, farms and audit history
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VerificationCase' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /admin/users/{user_id}/verification:
+    post:
+      tags: [Admin]
+      operationId: adminSetVerification
+      summary: Verify, reject or suspend a user
+      description: Writes an `admin_audit_log` row with before and after. Sends the user an SMS on any change.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [verified, rejected, suspended]
+                notes: { type: string, maxLength: 1000, description: Shown to the user when rejected. }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/documents/{document_id}/review:
+    post:
+      tags: [Admin]
+      operationId: adminReviewDocument
+      summary: Accept or reject one document
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [verified, rejected] }
+                notes: { type: string, maxLength: 1000 }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserDocument' }
+
+  /admin/documents/{document_id}/file:
+    get:
+      tags: [Admin]
+      operationId: adminGetDocumentFile
+      summary: Short-lived signed URL to view a document
+      description: URL expires in 5 minutes. Access is logged.
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+
+  /admin/reference-prices:
+    get:
+      tags: [Admin]
+      operationId: adminListReferencePrices
+      summary: Current reference price per province, species and class
+      parameters:
+        - name: province_code
+          in: query
+          schema: { $ref: '#/components/schemas/PsgcCode' }
+        - name: species
+          in: query
+          schema: { $ref: '#/components/schemas/Species' }
+        - name: include_history
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReferencePrice' }
+    post:
+      tags: [Admin]
+      operationId: adminSetReferencePrice
+      summary: Set a reference price
+      description: |
+        Inserts a new row; history is never overwritten. `effective_from` may not be
+        earlier than 7 days ago. A price more than 30 percent from the previous row
+        for the same key is accepted but flagged `large_change: true` in the response
+        and in the audit log, so a typo is caught by the second admin.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReferencePriceInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferencePrice' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /admin/reference-prices/import:
+    post:
+      tags: [Admin]
+      operationId: adminImportReferencePrices
+      summary: Bulk import from a CSV (PSA farmgate series)
+      description: |
+        CSV columns: province_code, species, weight_class_label (optional), unit, price,
+        effective_from, source. Validated as a whole; any bad row rejects the file with
+        line numbers. Nothing is written on a partial failure.
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema: { type: string }
+      responses:
+        '201':
+          description: Imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inserted: { type: integer }
+                  large_changes:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReferencePrice' }
+        '422':
+          description: Validation errors with line numbers.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /admin/restricted-zones:
+    get:
+      tags: [Admin]
+      operationId: adminListRestrictedZones
+      summary: Active and scheduled movement restrictions
+      parameters:
+        - name: active_on
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/RestrictedZone' }
+    post:
+      tags: [Admin]
+      operationId: adminCreateRestrictedZone
+      summary: Mark a location restricted for a species
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RestrictedZoneInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RestrictedZone' }
+
+  /admin/restricted-zones/{zone_id}:
+    patch:
+      tags: [Admin]
+      operationId: adminEndRestrictedZone
+      summary: Set or change the end date
+      parameters:
+        - name: zone_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ends_on]
+              properties:
+                ends_on: { type: string, format: date }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RestrictedZone' }
+
+  /admin/price-snapshots/refresh:
+    post:
+      tags: [Admin]
+      operationId: adminRefreshSnapshots
+      summary: Run the snapshot job for a date now
+      description: Calls `refresh_price_snapshots(date)`. Normally the nightly scheduler does this. Audited.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: { type: string, format: date }
+                window_days: { type: integer, default: 7 }
+      responses:
+        '200':
+          description: Rows written.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows: { type: integer }
+
+  /admin/audit-log:
+    get:
+      tags: [Admin]
+      operationId: adminAuditLog
+      summary: Admin actions, newest first
+      parameters:
+        - name: admin_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: action
+          in: query
+          schema: { type: string }
+        - name: target_id
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AuditEntry' }
+                  next_cursor: { type: [string, 'null'] }
+
+  /health:
+    get:
+      tags: [Ops]
+      operationId: health
+      summary: Liveness and dependency check
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  db: { type: string }
+                  redis: { type: string }
+                  last_snapshot_date: { type: [string, 'null'], format: date }
+
+# ====================================================================== Components
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token, 15 minute lifetime. Claims: `sub` (user id), `roles` (array),
+        `ver` (verification status), `jti`. Role checks happen server-side on every
+        request; the client uses the claims only to choose which screens to show.
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID. Stored 48 hours.
+      schema: { type: string, format: uuid }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: The `version` of the record the client last saw.
+      schema: { type: integer, minimum: 1 }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    PsgcPath:
+      name: psgc_code
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/PsgcCode' }
+    FarmId:
+      name: farm_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    LotId:
+      name: lot_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Role or ownership check failed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Not found, or not visible to this user.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unprocessable:
+      description: Validation failed. `errors` lists field problems.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    RateLimited:
+      description: Too many requests. `Retry-After` header is set.
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    PreconditionRequired:
+      description: If-Match header missing.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    VersionConflict:
+      description: The record changed since the client last saw it. Body carries the current server copy under `current`.
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - type: object
+                properties:
+                  current: { type: object }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri, example: 'https://api.example.ph/problems/validation' }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    PhoneE164:
+      type: string
+      pattern: '^\+63[0-9]{10}$'
+      example: '+639171234567'
+    PsgcCode:
+      type: string
+      pattern: '^[0-9]{9,10}$'
+      description: Philippine Standard Geographic Code.
+      example: '0304924000'
+    LangCode:
+      type: string
+      enum: [fil, en, ceb, ilo, hil, bcl, war]
+      description: Filipino, English, Cebuano, Ilocano, Hiligaynon, Bikol, Waray.
+    Money:
+      type: string
+      pattern: '^[0-9]+\.[0-9]{2}$'
+      description: Philippine pesos as a decimal string.
+      example: '185.50'
+    MoneyNullable:
+      type: [string, 'null']
+      pattern: '^[0-9]+\.[0-9]{2}$'
+    Weight:
+      type: string
+      pattern: '^[0-9]+(\.[0-9]{1,2})?$'
+      description: Kilograms as a decimal string.
+      example: '92.5'
+    Role:
+      type: string
+      enum: [farmer, buyer, hauler, admin]
+    VerificationStatus:
+      type: string
+      enum: [pending, verified, rejected, suspended]
+    Species:
+      type: string
+      enum: [hog, cattle, carabao, goat, native_chicken]
+    PriceUnit:
+      type: string
+      enum: [per_kg_liveweight, per_head]
+    PriceSource:
+      type: string
+      enum: [municipality, province, reference]
+      description: Which rung of the fallback ladder produced the price.
+    LocationLevel:
+      type: string
+      enum: [region, province, municipality, barangay]
+    DocType:
+      type: string
+      enum: [gov_id, selfie_with_id, business_permit, ltfrb_franchise, or_cr, coop_membership, barangay_clearance]
+
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, expires_in_seconds, user]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in_seconds: { type: integer, example: 900 }
+        user: { $ref: '#/components/schemas/User' }
+
+    DeviceInfo:
+      type: object
+      required: [device_id, platform]
+      properties:
+        device_id: { type: string, description: Stable per-install id generated by the app. }
+        platform: { type: string, enum: [android, ios, web] }
+        push_token: { type: string }
+        app_version: { type: string }
+
+    User:
+      type: object
+      required: [id, phone_masked, full_name, preferred_lang, roles, verification, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        phone_masked: { type: string, example: '+63917*****67' }
+        full_name: { type: string }
+        preferred_lang: { $ref: '#/components/schemas/LangCode' }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/Role' }
+        verification: { $ref: '#/components/schemas/VerificationStatus' }
+        verified_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    UserDocument:
+      type: object
+      required: [id, doc_type, status, uploaded_at]
+      properties:
+        id: { type: string, format: uuid }
+        doc_type: { $ref: '#/components/schemas/DocType' }
+        status: { $ref: '#/components/schemas/VerificationStatus' }
+        notes: { type: [string, 'null'], description: 'Reviewer note, shown to the user when rejected.' }
+        uploaded_at: { type: string, format: date-time }
+        reviewed_at: { type: [string, 'null'], format: date-time }
+
+    Location:
+      type: object
+      required: [psgc_code, level, name]
+      properties:
+        psgc_code: { $ref: '#/components/schemas/PsgcCode' }
+        parent_code: { type: [string, 'null'] }
+        level: { $ref: '#/components/schemas/LocationLevel' }
+        name: { type: string }
+        centroid:
+          type: [object, 'null']
+          properties:
+            lat: { type: number }
+            lng: { type: number }
+        has_children: { type: boolean }
+
+    LocationWithPath:
+      allOf:
+        - $ref: '#/components/schemas/Location'
+        - type: object
+          required: [path]
+          properties:
+            path:
+              type: array
+              description: Ancestors from region down to this location's parent.
+              items: { $ref: '#/components/schemas/Location' }
+            display_name:
+              type: string
+              example: 'Talavera, Nueva Ecija'
+
+    WeightClass:
+      type: object
+      required: [id, species, label, unit, sort]
+      properties:
+        id: { type: integer }
+        species: { $ref: '#/components/schemas/Species' }
+        label: { type: string, example: '80-100 kg' }
+        min_kg: { type: [string, 'null'] }
+        max_kg: { type: [string, 'null'] }
+        unit: { $ref: '#/components/schemas/PriceUnit' }
+        sort: { type: integer }
+
+    FarmInput:
+      type: object
+      required: [name, barangay_code]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        barangay_code: { $ref: '#/components/schemas/PsgcCode' }
+        address_line: { type: [string, 'null'], maxLength: 200 }
+        geo:
+          type: [object, 'null']
+          required: [lat, lng]
+          properties:
+            lat: { type: number }
+            lng: { type: number }
+        farm_type: { type: [string, 'null'], enum: [backyard, commercial, cooperative, null] }
+        permit_ref: { type: [string, 'null'], maxLength: 80 }
+        photo_keys:
+          type: array
+          maxItems: 5
+          items: { type: string }
+
+    Farm:
+      allOf:
+        - $ref: '#/components/schemas/FarmInput'
+        - type: object
+          required: [id, owner_id, version, location, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            owner_id: { type: string, format: uuid }
+            version: { type: integer, description: Increments on every write. Send back in If-Match. }
+            location: { $ref: '#/components/schemas/LocationWithPath' }
+            lot_summary:
+              type: array
+              items:
+                type: object
+                properties:
+                  species: { $ref: '#/components/schemas/Species' }
+                  lots: { type: integer }
+                  heads: { type: integer }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    LotInput:
+      type: object
+      required: [species, head_count]
+      properties:
+        species: { $ref: '#/components/schemas/Species' }
+        breed: { type: [string, 'null'], maxLength: 60 }
+        head_count: { type: integer, minimum: 1, maximum: 100000 }
+        avg_weight_kg: { $ref: '#/components/schemas/Weight' }
+        weight_class_id: { type: [integer, 'null'], description: Optional override; derived from avg_weight_kg when omitted. }
+        age_months: { type: [integer, 'null'], minimum: 0, maximum: 300 }
+        sex: { type: [string, 'null'], enum: [male, female, mixed, null] }
+        notes: { type: [string, 'null'], maxLength: 500 }
+        photo_keys:
+          type: array
+          maxItems: 5
+          items: { type: string }
+
+    Lot:
+      allOf:
+        - $ref: '#/components/schemas/LotInput'
+        - type: object
+          required: [id, farm_id, version, weight_class, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            farm_id: { type: string, format: uuid }
+            version: { type: integer }
+            weight_class: { $ref: '#/components/schemas/WeightClass' }
+            last_vaccination_on: { type: [string, 'null'], format: date }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    VaccinationInput:
+      type: object
+      required: [vaccine, given_on]
+      properties:
+        vaccine: { type: string, maxLength: 80 }
+        given_on: { type: string, format: date }
+        given_by: { type: [string, 'null'], maxLength: 120 }
+        doc_key: { type: [string, 'null'] }
+
+    Vaccination:
+      allOf:
+        - $ref: '#/components/schemas/VaccinationInput'
+        - type: object
+          required: [id, lot_id, created_at]
+          properties:
+            id: { type: string, format: uuid }
+            lot_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+
+    RunningPrice:
+      type: object
+      description: |
+        Output of `running_price()`. `source` says which rung answered. `municipality`
+        is always present so the UI can grey out a thin local figure next to the
+        figure actually used.
+      required: [species, unit, source, location_code, location_name, median_price, sample_count, as_of, municipality]
+      properties:
+        species: { $ref: '#/components/schemas/Species' }
+        weight_class: { $ref: '#/components/schemas/WeightClass' }
+        unit: { $ref: '#/components/schemas/PriceUnit' }
+        source: { $ref: '#/components/schemas/PriceSource' }
+        location_code: { $ref: '#/components/schemas/PsgcCode' }
+        location_name: { type: string, example: 'Nueva Ecija' }
+        median_price: { $ref: '#/components/schemas/MoneyNullable' }
+        low_price: { $ref: '#/components/schemas/MoneyNullable' }
+        high_price: { $ref: '#/components/schemas/MoneyNullable' }
+        sample_count: { type: integer, description: 0 when source is reference. }
+        change_30d_pct: { type: [number, 'null'] }
+        window_days: { type: integer, example: 7 }
+        as_of: { type: string, format: date }
+        reference_source: { type: [string, 'null'], description: 'Set when source is reference, e.g. PSA farmgate, Aug 2026.' }
+        municipality:
+          type: object
+          required: [sample_count]
+          properties:
+            median_price: { $ref: '#/components/schemas/MoneyNullable' }
+            sample_count: { type: integer }
+        label:
+          type: object
+          description: Pre-rendered display strings in the user's language so every client says the same thing.
+          properties:
+            fil: { type: string, example: 'Batay sa 12 bentahan sa Talavera ngayong linggo' }
+            en: { type: string, example: 'Based on 12 sales in Talavera this week' }
+
+    BoardRow:
+      allOf:
+        - $ref: '#/components/schemas/RunningPrice'
+        - type: object
+          properties:
+            sparkline:
+              type: array
+              description: Last 14 daily medians at the level used, oldest first. Nulls for missing days.
+              items: { type: [number, 'null'] }
+
+    SyncOperation:
+      type: object
+      required: [op_id, method, path, body]
+      properties:
+        op_id: { type: string, format: uuid, description: Doubles as the idempotency key. }
+        method: { type: string, enum: [POST, PATCH, DELETE] }
+        path:
+          type: string
+          description: One of the farm, lot or vaccination paths above. Client-side temporary ids are allowed in the form `tmp:<uuid>` and are resolved from earlier operations in the same batch.
+          example: '/farms/tmp:5a6f.../lots'
+        if_match: { type: [integer, 'null'] }
+        body: { type: object }
+        recorded_at: { type: string, format: date-time, description: When the user made the edit on the device. }
+
+    SyncResult:
+      type: object
+      required: [op_id, status]
+      properties:
+        op_id: { type: string, format: uuid }
+        status: { type: integer, description: HTTP status the operation would have returned. }
+        resource: { type: object, description: The created or updated record on 2xx. }
+        id_map:
+          type: object
+          additionalProperties: { type: string, format: uuid }
+          description: Temporary id to server id for creates.
+        problem: { $ref: '#/components/schemas/Problem' }
+
+    VerificationCase:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        documents:
+          type: array
+          items: { $ref: '#/components/schemas/UserDocument' }
+        farms:
+          type: array
+          items: { $ref: '#/components/schemas/Farm' }
+        oldest_pending_at: { type: [string, 'null'], format: date-time }
+
+    ReferencePriceInput:
+      type: object
+      required: [province_code, species, unit, price, source, effective_from]
+      properties:
+        province_code: { $ref: '#/components/schemas/PsgcCode' }
+        species: { $ref: '#/components/schemas/Species' }
+        weight_class_id: { type: [integer, 'null'], description: Null applies to all classes of the species that lack their own row. }
+        unit: { $ref: '#/components/schemas/PriceUnit' }
+        price: { $ref: '#/components/schemas/Money' }
+        source: { type: string, maxLength: 200, example: 'PSA farmgate, week 35 2026' }
+        effective_from: { type: string, format: date }
+
+    ReferencePrice:
+      allOf:
+        - $ref: '#/components/schemas/ReferencePriceInput'
+        - type: object
+          required: [id, set_by, created_at]
+          properties:
+            id: { type: string, format: uuid }
+            set_by: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            large_change: { type: boolean }
+            previous_price: { $ref: '#/components/schemas/MoneyNullable' }
+
+    RestrictedZoneInput:
+      type: object
+      required: [location_code, species, reason, starts_on]
+      properties:
+        location_code: { $ref: '#/components/schemas/PsgcCode' }
+        species: { $ref: '#/components/schemas/Species' }
+        reason: { type: string, maxLength: 200, example: 'ASF red zone, BAI memo 2026-41' }
+        starts_on: { type: string, format: date }
+        ends_on: { type: [string, 'null'], format: date }
+
+    RestrictedZone:
+      allOf:
+        - $ref: '#/components/schemas/RestrictedZoneInput'
+        - type: object
+          required: [id, set_by, created_at, location]
+          properties:
+            id: { type: string, format: uuid }
+            location: { $ref: '#/components/schemas/LocationWithPath' }
+            set_by: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+
+    AuditEntry:
+      type: object
+      required: [id, admin_id, action, target_type, target_id, created_at]
+      properties:
+        id: { type: integer }
+        admin_id: { type: string, format: uuid }
+        admin_name: { type: string }
+        action: { type: string, example: set_reference_price }
+        target_type: { type: string }
+        target_id: { type: string }
+        before: { type: [object, 'null'] }
+        after: { type: [object, 'null'] }
+        created_at: { type: string, format: date-time }

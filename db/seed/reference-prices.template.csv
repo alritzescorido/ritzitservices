@@ -1,0 +1,13 @@
+province_code,species,weight_class,unit,price,source,effective_from
+# PLACEHOLDER NUMBERS. Replace with PSA farmgate figures for the chosen pilot provinces before loading.
+# Nueva Ecija shown as an example province code (0304900000). One species-wide row plus class rows per species.
+0304900000,hog,,per_kg_liveweight,176.00,"[PSA farmgate, week and year]",2026-09-14
+0304900000,hog,under 60 kg,per_kg_liveweight,190.00,"[PSA farmgate, week and year]",2026-09-14
+0304900000,hog,60-80 kg,per_kg_liveweight,182.00,"[PSA farmgate, week and year]",2026-09-14
+0304900000,hog,80-100 kg,per_kg_liveweight,177.00,"[PSA farmgate, week and year]",2026-09-14
+0304900000,hog,100-120 kg,per_kg_liveweight,175.00,"[PSA farmgate, week and year]",2026-09-14
+0304900000,hog,over 120 kg,per_kg_liveweight,170.00,"[PSA farmgate, week and year]",2026-09-14
+0304900000,cattle,,per_kg_liveweight,150.00,"[PSA farmgate, week and year]",2026-09-14
+0304900000,carabao,,per_kg_liveweight,140.00,"[PSA farmgate, week and year]",2026-09-14
+0304900000,goat,,per_head,4500.00,"[trader survey, date]",2026-09-14
+0304900000,native_chicken,,per_head,350.00,"[trader survey, date]",2026-09-14

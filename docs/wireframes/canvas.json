@@ -1,0 +1,47 @@
+{
+  "pages": [
+    { "id": "page-onboarding", "name": "Sign in & registration" },
+    { "id": "page-farmer", "name": "Farmer" },
+    { "id": "page-buyer", "name": "Buyer" },
+    { "id": "page-hauler", "name": "Logistics (hauler)" },
+    { "id": "page-admin", "name": "Admin console" }
+  ],
+  "artboards": [
+    { "file": "Signin.dc.html", "title": "1 · Mobile number", "page": "page-onboarding", "x": 0, "y": 0, "w": 390, "h": 844 },
+    { "file": "OtpCode.dc.html", "title": "2 · One-time code", "page": "page-onboarding", "x": 480, "y": 0, "w": 390, "h": 844 },
+    { "file": "Profile.dc.html", "title": "3 · Name, language, role", "page": "page-onboarding", "x": 960, "y": 0, "w": 390, "h": 844 },
+    { "file": "RegisterFarmer.dc.html", "title": "4a · Farmer: your farm", "page": "page-onboarding", "x": 1560, "y": 0, "w": 390, "h": 844 },
+    { "file": "RegisterBuyer.dc.html", "title": "4b · Buyer: your business", "page": "page-onboarding", "x": 2040, "y": 0, "w": 390, "h": 844 },
+    { "file": "RegisterHauler.dc.html", "title": "4c · Hauler: your truck", "page": "page-onboarding", "x": 2520, "y": 0, "w": 390, "h": 844 },
+    { "file": "Pending.dc.html", "title": "5 · Verification pending", "page": "page-onboarding", "x": 3120, "y": 0, "w": 390, "h": 844 },
+    { "file": "AdminLogin.dc.html", "title": "Admin console sign-in (web)", "page": "page-onboarding", "x": 0, "y": 1000, "w": 1440, "h": 900 },
+
+    { "file": "Main.dc.html", "title": "Price board", "page": "page-farmer", "x": 0, "y": 0, "w": 390, "h": 844 },
+    { "file": "Herd.dc.html", "title": "My herd", "page": "page-farmer", "x": 480, "y": 0, "w": 390, "h": 844 },
+    { "file": "Listing.dc.html", "title": "Post listing", "page": "page-farmer", "x": 960, "y": 0, "w": 390, "h": 844 },
+    { "file": "Deal.dc.html", "title": "Deal status", "page": "page-farmer", "x": 1440, "y": 0, "w": 390, "h": 844 },
+
+    { "file": "BuyerBrowse.dc.html", "title": "Listings", "page": "page-buyer", "x": 0, "y": 0, "w": 390, "h": 844 },
+    { "file": "BuyerOffer.dc.html", "title": "Make an offer", "page": "page-buyer", "x": 480, "y": 0, "w": 390, "h": 844 },
+    { "file": "BuyerReceive.dc.html", "title": "Receive and pay", "page": "page-buyer", "x": 960, "y": 0, "w": 390, "h": 844 },
+
+    { "file": "HaulJobs.dc.html", "title": "Haul jobs", "page": "page-hauler", "x": 0, "y": 0, "w": 390, "h": 844 },
+    { "file": "HaulPickup.dc.html", "title": "Pickup checklist", "page": "page-hauler", "x": 480, "y": 0, "w": 390, "h": 844 },
+    { "file": "HaulTransit.dc.html", "title": "In transit", "page": "page-hauler", "x": 960, "y": 0, "w": 390, "h": 844 },
+
+    { "file": "AdminOverview.dc.html", "title": "Overview", "page": "page-admin", "x": 0, "y": 0, "w": 1440, "h": 900 },
+    { "file": "AdminVerify.dc.html", "title": "Verification queue", "page": "page-admin", "x": 1560, "y": 0, "w": 1440, "h": 900 },
+    { "file": "AdminPrices.dc.html", "title": "Reference prices", "page": "page-admin", "x": 0, "y": 1040, "w": 1440, "h": 900 },
+    { "file": "AdminDisputes.dc.html", "title": "Disputes", "page": "page-admin", "x": 1560, "y": 1040, "w": 1440, "h": 900 }
+  ],
+  "annotations": [
+    { "id": "onboarding-notes", "page": "page-onboarding", "x": 0, "y": -330, "w": 720, "text": "Sign in and registration, all mobile roles. One door: mobile number → 6-digit code by text (expires in 5 min, resend after 60 s, 5 wrong codes lock the attempt, per the API contract) → returning users land in their app; new numbers continue to name, language and role → one role-specific form → pending state for buyers and haulers.\n\nFarmers can read prices immediately after saving a farm; selling needs a verified farm. Buyers and haulers can browse while pending; offers and job acceptance unlock on verification.\n\nDocument types match the contract: gov_id, selfie_with_id, business_permit, or_cr, ltfrb_franchise, barangay_clearance, coop_membership. Farm fields match FarmInput: name, barangay (PSGC), pin, farm type." },
+    { "id": "onboarding-branch", "page": "page-onboarding", "x": 1560, "y": -180, "w": 1350, "text": "Step 4 branches on the role picked in step 3. Only one of these three forms is shown. A user can add a second role later from Me and gets that role's form then." },
+    { "id": "admin-login-notes", "page": "page-onboarding", "x": 1560, "y": 1000, "w": 520, "text": "Admin sign-in is an assumption: the API contract has no admin auth yet. Drawn as work email + password + authenticator code, no self-registration, 8-hour sessions, lockout after 5 failures. Alternative if staff prefer: the same phone OTP as the apps, restricted to whitelisted numbers. Decide before the Phase 2 API." },
+    { "id": "wire-notes", "page": "page-farmer", "x": 0, "y": -330, "w": 560, "text": "Farmer app wireframes, low fidelity.\nFlow left to right: check price, pick a lot from the herd, post a listing, follow the deal. Sign-in and farm registration are on the first page of this canvas.\n\nAssumed: Filipino labels with English fallback (Presyo, Hayop, Ibenta). Sample numbers only. Every price shows its sample size and location level, per the fallback ladder in the proposal.\n\nPalette: ink #2B2B2B, paper #FAFAF7, muted #8A8A8A, price accent #2E7D4F, warning #B4572E (overdue, report a problem). All tap targets 44px or taller." },
+    { "id": "buyer-notes", "page": "page-buyer", "x": 0, "y": -300, "w": 640, "text": "Buyer app (trader / viajero), same phone frame and style as the farmer app.\n\nFlow: browse listings near me with asking price compared to the board → make an offer with pickup window and hauling choice → at delivery, count, weigh, recompute the total and record the payment.\n\nAssumed: buyers pay the farmer off-platform during the pilot (GCash, bank, cash) and the app keeps the reference number for disputes (open decision 3). A 3% weight tolerance separates a normal shrink from a dispute. Unverified farmers are visible but greyed, offers disabled.\n\nTabs: Listings, Offers, Deals, Me." },
+    { "id": "hauler-notes", "page": "page-hauler", "x": 0, "y": -300, "w": 640, "text": "Logistics app for truck owners and drivers.\n\nFlow: pick a job that fits the truck → at the farm, run the pickup checklist (head count, shipping permit, vet certificate, load photo) before the trip can start → share location in transit, log checkpoints and problems, hand over to the buyer.\n\nAssumed: the checklist is the evidence base for disputes, so it is mandatory and saves offline. Fee is fixed per job and paid by the buyer outside the app during the pilot. Permit names (LGU shipping permit, vet health certificate) to confirm in Phase 0 field work.\n\nTabs: Jobs, Trip, History, Me." },
+    { "id": "admin-notes", "page": "page-admin", "x": 0, "y": -300, "w": 760, "text": "Admin web console, desktop 1440 wide (React per the proposal). One province admin sees one province; a national admin switches provinces from the top bar. Sign-in is on the first page of this canvas.\n\nOverview: is the board healthy, where is it thin. Verification: approve buyers, haulers and farmers with a checklist and a risk hint. Reference prices: PSA import, per weight class, reason required, second admin for changes over 10%, audit log. Disputes: evidence from all three parties side by side, resolution options with the amount computed, a note both parties see.\n\nNot drawn yet: Reports, Users, Settings (plain lists and forms)." }
+  ],
+  "launch": { "view": "canvas", "page": "page-onboarding" }
+}

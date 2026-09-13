@@ -1,0 +1,21 @@
+{
+  "name": "livestock-price-board",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Livestock Price Board monorepo: database schema and seeds, API, admin web, mobile.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "db:test": "node db/tests/run.mjs",
+    "db:seed:psgc": "node db/seed/psgc.mjs",
+    "db:seed:check": "node db/seed/check-locations.mjs",
+    "db:seed:reference-prices": "node db/seed/reference-prices.mjs",
+    "api:lint": "redocly lint docs/api/openapi.yaml"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@redocly/cli": "^2.52.1"
+  }
+}
