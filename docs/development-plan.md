@@ -57,7 +57,7 @@ If Phase 0 starts on Monday 21 Sep 2026, the farmer beta lands mid November, the
 
 Done and reviewed once: proposal with diagrams, 22 wireframes for all roles including sign-in and registration, Phase 1 API contract with 45 operations, PostgreSQL schema v0.2 with the deal state machine trigger and the running-price fallback function, SQL scenario tests (written, never run), Phase 0 field checklist, PayMongo payment model proposal.
 
-Not done: nothing has been executed against a database, there is no application code, no PSGC location seed, no admin auth in the contract, no deposit objects in the contract or schema, and the wireframes have not had their design review.
+Not done at the start: nothing executed against a database, no application code, no PSGC seed, no admin auth in the contract, no deposit objects, no design review. Update 13 Sep 2026: SQL tests green, PSGC seed loaded, CI defined, wireframes approved by the owner, and the API covers the whole Phase 1 contract except admin sign-in and the nightly scheduler (see `api/README.md`).
 
 ---
 

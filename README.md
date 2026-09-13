@@ -31,7 +31,7 @@ Working name. Target market: Philippines, pilot in two provinces.
 
 ## Status
 
-Phase 0 engineering started 13 Sep 2026. Wireframes for all roles approved. SQL scenario tests run green (in-process PostgreSQL, no Docker needed), the PSGC location seed is generated (43,778 rows), CI is defined, and the API has its first vertical slice: OTP sign-in, current user and roles, locations, weight classes, price board, health, with an end-to-end suite. API stack is NestJS, assumed on 13 Sep 2026 because Node is the tooling on hand; confirm or reverse before week 3. Flutter for mobile and React for admin web as proposed.
+Phase 0 engineering started 13 Sep 2026. Wireframes for all roles approved. SQL scenario tests run green (in-process PostgreSQL, no Docker needed), the PSGC location seed is generated (43,778 rows), CI is defined, and the API implements the Phase 1 contract: OTP sign-in, profile and roles, farms and lots with offline sync, uploads and documents, locations, price board, and the admin endpoints (verification, reference prices, restricted zones, audit), with 23 end-to-end tests. Still open in the API: admin sign-in method and the nightly scheduler. API stack is NestJS, assumed on 13 Sep 2026 because Node is the tooling on hand; confirm or reverse before week 3. Flutter for mobile and React for admin web as proposed.
 
 ## Decisions still open
 
