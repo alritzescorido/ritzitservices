@@ -126,7 +126,7 @@ Mobile (Flutter, Android first)
 - Crash reporting and analytics events: board opened, price viewed with level, lot saved, sync completed.
 
 Admin web (React)
-- Sign in with authenticator, verification queue with detail panel and checklist, reference prices table with draft, reason, publish, audit log, users list.
+- Sign in with authenticator, verification queue with detail panel and checklist. (Built 14 Sep 2026 together with reference prices, restricted zones, audit log and account; see `web-admin/README.md`.) reference prices table with draft, reason, publish, audit log, users list.
 
 Design
 - Redraw the wireframes changed in the Phase 0 review; produce the component sheet the mobile team needs: buttons, chips, inputs, list rows, empty and error states.

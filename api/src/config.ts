@@ -39,6 +39,11 @@ const schema = z.object({
   STORAGE_PROVIDER: z.enum(['local']).default('local'),
   UPLOAD_DIR: z.string().default('./.data/uploads'),
   // Run the nightly snapshot and hourly purge in this process. Exactly one node should.
+  // Browser origins allowed to call the API (the admin console). Comma separated. Mobile apps need none.
+  CORS_ORIGINS: z
+    .string()
+    .default('http://localhost:5173')
+    .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
   SCHEDULER_ENABLED: z
     .enum(['true', 'false'])
     .default('true')

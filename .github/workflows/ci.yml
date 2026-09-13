@@ -48,6 +48,24 @@ jobs:
       - run: npm run lint
       - run: npm run test:e2e
 
+  web-admin:
+    name: Admin console type check, lint, tests, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-admin/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
+
   db-postgis:
     name: SQL tests and seeds (PostgreSQL 15 + PostGIS)
     runs-on: ubuntu-latest
