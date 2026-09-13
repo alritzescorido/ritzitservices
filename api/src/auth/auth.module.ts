@@ -26,6 +26,6 @@ import { ConsoleSmsProvider, SMS_PROVIDER } from './sms.provider.js';
     { provide: SMS_PROVIDER, useClass: ConsoleSmsProvider },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
-  exports: [JwtModule],
+  exports: [JwtModule, SMS_PROVIDER],
 })
 export class AuthModule {}

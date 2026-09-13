@@ -31,9 +31,17 @@ do $$ begin
   if exists (select 1 from pg_extension where extname = 'postgis') then
     execute 'create domain geo_point as geography(point, 4326)';
     execute 'create domain geo_multipolygon as geography(multipolygon, 4326)';
+    execute $f$create function geo_from_lnglat(lng double precision, lat double precision) returns geo_point
+      language sql immutable strict as 'select ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography::geo_point'$f$;
+    execute $f$create function geo_lnglat(g geo_point) returns text
+      language sql immutable strict as 'select ST_X($1::geometry)::text || '' '' || ST_Y($1::geometry)::text'$f$;
   else
     execute 'create domain geo_point as point';
     execute 'create domain geo_multipolygon as polygon';
+    execute $f$create function geo_from_lnglat(lng double precision, lat double precision) returns geo_point
+      language sql immutable strict as 'select point($1, $2)::geo_point'$f$;
+    execute $f$create function geo_lnglat(g geo_point) returns text
+      language sql immutable strict as 'select ($1)[0]::text || '' '' || ($1)[1]::text'$f$;
   end if;
 end $$;
 create extension if not exists pgcrypto;
@@ -64,6 +72,7 @@ create table users (
   verification    verification_status not null default 'pending',
   verified_at     timestamptz,
   verified_by     uuid references users(id),
+  verification_notes text,                        -- reviewer note, shown to the user when rejected
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
@@ -184,6 +193,7 @@ create table farms (
   geo            geo_point,
   farm_type      text,                            -- 'backyard', 'commercial', 'cooperative'
   permit_ref     text,
+  photo_keys     text[] not null default '{}',   -- storage keys, max 5, never public URLs
   version        integer not null default 1,      -- optimistic lock for offline edits (If-Match)
   archived_at    timestamptz,                     -- soft delete
   created_at     timestamptz not null default now(),
@@ -216,6 +226,7 @@ create table livestock_lots (
   age_months       smallint,
   sex              text,                          -- 'male','female','mixed'
   notes            text,
+  photo_keys       text[] not null default '{}',
   version          integer not null default 1,    -- optimistic lock for offline edits (If-Match)
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
@@ -419,7 +430,7 @@ create table reference_prices (
   source           text not null,
   effective_from   date not null,
   set_by           uuid not null references users(id),
-  created_at       timestamptz not null default now()
+  created_at       timestamptz not null default clock_timestamp()  -- same-day corrections must order deterministically
 );
 create index on reference_prices (province_code, species, weight_class_id, effective_from desc);
 
@@ -516,7 +527,7 @@ begin
    where province_code = v_province and species = p_species
      and (weight_class_id = p_weight_class_id or weight_class_id is null)
      and effective_from <= p_as_of
-   order by (weight_class_id is null), effective_from desc limit 1;
+   order by (weight_class_id is null), effective_from desc, created_at desc limit 1;
 
   return query select 'reference'::price_source, v_province, r.price, null::numeric, null::numeric,
                       0, null::numeric, m.median_price, coalesce(m.sample_count, 0);

@@ -33,7 +33,11 @@ npx tsc --noEmit   # type check
 npm run lint
 ```
 
-The e2e suite covers: problem+json errors, locations (tree, search, path), weight classes, the price board falling back to reference prices with labels and ETag, OTP sign-in with wrong-code counting, lockout after five, per-phone rate limit, refresh rotation and family revocation, profile and role changes.
+Three e2e suites, each on its own in-memory database:
+
+- `api.e2e-spec.ts`: problem+json errors, locations, weight classes, the board falling back to reference prices with labels and ETag, OTP sign-in with wrong-code counting and lockout, per-phone rate limit, refresh rotation and family revocation, profile and roles.
+- `farms.e2e-spec.ts`: farms and lots with Idempotency-Key replay and mismatch, If-Match (428, 409 with the server copy), weight class derivation, vaccinations, signed photo and document uploads with magic-byte checks, document registration, the offline sync batch with temporary ids and replay.
+- `admin.e2e-spec.ts`: role guard, verification queue and case, document review and signed file view, verify and reject with the note shown to the user, reference prices with large-change flag and all-or-nothing CSV import, restricted zones, snapshot refresh, audit log.
 
 ## Layout
 
@@ -46,8 +50,12 @@ The e2e suite covers: problem+json errors, locations (tree, search, path), weigh
 | `src/users/` | `/me`, `/me/roles`, user serialisation with masked phone |
 | `src/locations/` | PSGC tree, search with display path |
 | `src/prices/` | Weight classes, board, running price, history. Reads `running_price()` and `price_snapshots` only, never raw deals |
+| `src/farms/` | Farms, lots, vaccinations with `If-Match` versions; the offline `/sync` batch with temporary ids |
+| `src/storage/` | Signed upload and view URLs; local provider stores files under `UPLOAD_DIR` and checks magic bytes |
+| `src/admin/` | Verification queue and decisions, document review, reference prices and CSV import, restricted zones, snapshot refresh, audit log. Every write audits itself |
+| `src/common/idempotency.ts` | `Idempotency-Key` store: same key and body replays the stored response, different body is 422 |
 | `src/health/` | Liveness with engine and last snapshot date |
-| `test/api.e2e-spec.ts` | End-to-end suite |
+| `test/*.e2e-spec.ts` | End-to-end suites |
 
 ## Conventions
 
@@ -58,4 +66,4 @@ The e2e suite covers: problem+json errors, locations (tree, search, path), weigh
 
 ## Not built yet (Phase 1 backlog)
 
-Farms and lots with `If-Match`, document uploads, the offline `/sync` batch, admin verification and reference price endpoints, admin sign-in (decision 5), nightly snapshot job, push notifications, a real SMS provider.
+Admin sign-in with email, password and authenticator (decision 5; admins currently sign in by phone OTP like everyone else, and the admin role is granted in the database), the nightly snapshot and idempotency-purge scheduler, push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration tool.

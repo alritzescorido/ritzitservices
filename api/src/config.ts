@@ -32,6 +32,12 @@ const schema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  // Where clients reach this API, used to build upload URLs for the local storage provider.
+  PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
+  // local: files on disk under UPLOAD_DIR, served through signed URLs by this API.
+  // s3: pre-signed URLs to S3-compatible storage (adapter to be added with the cloud account).
+  STORAGE_PROVIDER: z.enum(['local']).default('local'),
+  UPLOAD_DIR: z.string().default('./.data/uploads'),
 });
 
 export type AppConfig = z.infer<typeof schema>;

@@ -124,7 +124,7 @@ export class PricesService {
       `select source from reference_prices
         where province_code = $1 and species = $2::species
           and (weight_class_id = $3::smallint or weight_class_id is null) and effective_from <= $4::date
-        order by (weight_class_id is null), effective_from desc limit 1`,
+        order by (weight_class_id is null), effective_from desc, created_at desc limit 1`,
       [provCode, species, weightClassId, asOf],
     );
     return row?.source ?? null;

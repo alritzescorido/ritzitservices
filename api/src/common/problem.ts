@@ -23,8 +23,29 @@ export class ProblemException extends Error {
     public readonly detail?: string,
     public readonly errors?: { field: string; message: string }[],
     public readonly headers: Record<string, string> = {},
+    /** Extra members merged into the problem body, e.g. `current` on a version conflict. */
+    public readonly extra: Record<string, unknown> = {},
   ) {
     super(detail ?? title);
+  }
+
+  static preconditionRequired(detail = 'If-Match header is required') {
+    return new ProblemException(428, 'precondition-required', 'Precondition required', detail);
+  }
+  /** 409 with the server's current copy so the client can show a merge screen. */
+  static versionConflict(current: unknown) {
+    return new ProblemException(
+      409,
+      'version-conflict',
+      'Version conflict',
+      'The record changed since you last saw it. Review the current copy and try again.',
+      undefined,
+      {},
+      { current },
+    );
+  }
+  static payloadTooLarge(detail: string) {
+    return new ProblemException(413, 'too-large', 'Payload too large', detail);
   }
 
   static badRequest(detail: string) {
@@ -62,6 +83,7 @@ export class ProblemException extends Error {
       ...(this.detail ? { detail: this.detail } : {}),
       ...(instance ? { instance } : {}),
       ...(this.errors ? { errors: this.errors } : {}),
+      ...this.extra,
     };
   }
 }
