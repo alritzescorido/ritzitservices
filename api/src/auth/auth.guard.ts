@@ -47,7 +47,10 @@ export class JwtAuthGuard implements CanActivate {
 
     if (token) {
       try {
-        req.user = await this.jwt.verifyAsync<AccessClaims>(token);
+        const claims = await this.jwt.verifyAsync<AccessClaims & { purpose?: string }>(token);
+        // Only access tokens carry roles; a sign-in step token or anything else is not a session.
+        if (!Array.isArray(claims.roles) || claims.purpose) throw new Error('not an access token');
+        req.user = claims;
       } catch {
         if (!isPublic) throw ProblemException.unauthorized('Token is invalid or expired');
       }

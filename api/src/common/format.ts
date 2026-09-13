@@ -22,9 +22,19 @@ export function dateOnly(v: unknown): string | null {
   return String(v).slice(0, 10);
 }
 
+/**
+ * Postgres renders timestamptz as "2026-09-13 14:00:00.123456+08", which
+ * JavaScript will not parse: the space, the microseconds and the bare "+08"
+ * offset all have to be normalised before Date can read it.
+ */
 export function isoTime(v: unknown): string | null {
   if (v === null || v === undefined) return null;
-  const d = v instanceof Date ? v : new Date(String(v).replace(' ', 'T'));
+  if (v instanceof Date) return v.toISOString();
+  let s = String(v).trim().replace(' ', 'T');
+  s = s.replace(/(\.\d{3})\d+/, '$1'); // microseconds -> milliseconds
+  s = s.replace(/([+-]\d{2})$/, '$1:00'); // +08 -> +08:00
+  if (!/[Zz]$|[+-]\d{2}:\d{2}$/.test(s)) s += 'Z'; // timestamp without time zone is UTC by convention here
+  const d = new Date(s);
   return Number.isNaN(d.getTime()) ? String(v) : d.toISOString();
 }
 

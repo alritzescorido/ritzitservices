@@ -45,16 +45,17 @@ export class AuthService {
    * Limits from the contract: 3 per phone per 10 minutes, 10 per IP per hour.
    */
   async requestOtp(phone: string, ip: string | null) {
-    const perPhone = await this.db.one<{ n: number; newest: string | null }>(
-      `select count(*)::int as n, max(created_at)::text as newest from auth_otp_challenges
+    // Ages are computed in SQL so the database clock is the only clock that matters.
+    const perPhone = await this.db.one<{ n: number; newest_age_sec: number | null }>(
+      `select count(*)::int as n, extract(epoch from now() - max(created_at))::int as newest_age_sec from auth_otp_challenges
         where phone_e164 = $1 and created_at > now() - interval '10 minutes'`,
       [phone],
     );
     if ((perPhone?.n ?? 0) >= this.config.OTP_PER_PHONE_PER_10_MIN) {
       throw ProblemException.rateLimited(600, 'Too many codes requested for this number. Try again in 10 minutes.');
     }
-    if (perPhone?.newest) {
-      const ageSec = (Date.now() - new Date(perPhone.newest.replace(' ', 'T')).getTime()) / 1000;
+    if (perPhone?.newest_age_sec != null) {
+      const ageSec = Number(perPhone.newest_age_sec);
       if (ageSec < this.config.OTP_RESEND_AFTER_SECONDS) {
         throw ProblemException.rateLimited(
           Math.ceil(this.config.OTP_RESEND_AFTER_SECONDS - ageSec),
@@ -177,6 +178,11 @@ export class AuthService {
     } else {
       await this.db.query(`update refresh_tokens set revoked_at = now() where user_id = $1 and revoked_at is null`, [userId]);
     }
+  }
+
+  /** Start a new session for a user authenticated by another path (console sign-in). */
+  issueForUser(user: UserDto, deviceId?: string): Promise<TokenPair> {
+    return this.db.tx((q) => this.issueTokens(q, user, randomUUID(), deviceId));
   }
 
   private async touchDevice(q: Queryable, userId: string, d: DeviceInfo) {

@@ -38,6 +38,12 @@ const schema = z.object({
   // s3: pre-signed URLs to S3-compatible storage (adapter to be added with the cloud account).
   STORAGE_PROVIDER: z.enum(['local']).default('local'),
   UPLOAD_DIR: z.string().default('./.data/uploads'),
+  // Run the nightly snapshot and hourly purge in this process. Exactly one node should.
+  SCHEDULER_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  SNAPSHOT_HOUR_MANILA: z.coerce.number().int().min(0).max(23).default(5),
 });
 
 export type AppConfig = z.infer<typeof schema>;
