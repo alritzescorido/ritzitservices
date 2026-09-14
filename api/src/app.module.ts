@@ -9,13 +9,14 @@ import { FarmsModule } from './farms/farms.module.js';
 import { HealthController } from './health/health.controller.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { LocationsModule } from './locations/locations.module.js';
+import { LogisticsModule } from './logistics/logistics.module.js';
 import { MarketModule } from './market/market.module.js';
 import { PricesModule } from './prices/prices.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
 
 @Module({
-  imports: [AppConfigModule, DbModule, StorageModule, AuthModule, UsersModule, LocationsModule, PricesModule, FarmsModule, MarketModule, AdminModule, JobsModule],
+  imports: [AppConfigModule, DbModule, StorageModule, AuthModule, UsersModule, LocationsModule, PricesModule, FarmsModule, MarketModule, LogisticsModule, AdminModule, JobsModule],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: ProblemFilter }],
 })

@@ -10,7 +10,7 @@ import { ProblemException } from '../common/problem.js';
 // PUT URL to upload, and admins get a 5-minute signed GET URL to view. The
 // local provider keeps files under UPLOAD_DIR and serves them through this API;
 // an S3 provider will hand out real pre-signed URLs with the same interface.
-export type UploadPurpose = 'user_document' | 'farm_photo' | 'lot_photo' | 'vaccination_doc';
+export type UploadPurpose = 'user_document' | 'farm_photo' | 'lot_photo' | 'vaccination_doc' | 'shipment_photo';
 export type ContentType = 'image/jpeg' | 'image/png' | 'image/webp' | 'application/pdf';
 
 const MAX_BYTES: Record<UploadPurpose, number> = {
@@ -18,9 +18,10 @@ const MAX_BYTES: Record<UploadPurpose, number> = {
   vaccination_doc: 10 * 1024 * 1024,
   farm_photo: 5 * 1024 * 1024,
   lot_photo: 5 * 1024 * 1024,
+  shipment_photo: 5 * 1024 * 1024,
 };
 const EXT: Record<ContentType, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' };
-const KEY_PATTERN = /^(user_document|farm_photo|lot_photo|vaccination_doc)\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|pdf)$/;
+const KEY_PATTERN = /^(user_document|farm_photo|lot_photo|vaccination_doc|shipment_photo)\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|pdf)$/;
 
 export interface UploadSlot {
   storage_key: string;

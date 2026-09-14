@@ -202,13 +202,32 @@ export function Deals() {
   );
 }
 
+function haulingLine(deal: Deal): string {
+  if (!deal.needs_hauler) return 'buyer brings own truck';
+  const to = deal.dropoff ? ` → ${deal.dropoff.display_name}` : '';
+  const s = deal.shipment;
+  if (!s) return `hauler wanted${to} · no hauler yet`;
+  return `${s.hauler_name}${s.vehicle_plate ? ` (${s.vehicle_plate})` : ''}${to} · ${s.status.replace('_', ' ')}${s.agreed_fee ? ` · fee ${money(s.agreed_fee)}` : ''}`;
+}
+
 export function DealFacts({ deal }: { deal: Deal }) {
   const rows: [string, string][] = [
     ['Agreed', `${money(deal.agreed_price)}${unitLabel(deal.unit)} × ${deal.agreed_heads} heads${deal.agreed_weight_kg ? ` · ${deal.agreed_weight_kg} kg declared` : ''} · est. ${money(deal.estimated_total)}`],
     ['Delivered', deal.delivered_heads === null ? 'not yet' : `${deal.delivered_heads} heads${deal.delivered_weight_kg ? ` · ${deal.delivered_weight_kg} kg weighed` : ''} · ${money(deal.final_total)} · ${when(deal.delivered_at)}`],
-    ['Hauling', deal.needs_hauler ? 'hauler booked in app' : 'buyer brings own truck'],
+    ['Hauling', haulingLine(deal)],
     ['Payment', deal.payment_method ? `${deal.payment_method}${deal.payment_reference ? ` ref ${deal.payment_reference}` : ''} · buyer ${when(deal.buyer_paid_at)}${deal.farmer_confirmed_at ? ` · farmer confirmed ${when(deal.farmer_confirmed_at)}` : ' · farmer has not confirmed'}` : 'not recorded'],
   ];
+  if (deal.shipment) {
+    const s = deal.shipment;
+    rows.push([
+      'Pickup checklist',
+      s.picked_up_at
+        ? `permit ${s.shipping_permit_no} · vet cert ${s.vet_health_cert_no} · ${s.head_count_at_pickup} heads loaded · ${when(s.picked_up_at)}`
+        : `not started · pickup planned ${when(s.scheduled_pickup_at)}`,
+    ]);
+    if (s.last_ping) rows.push(['Last position', `${s.last_ping.lat.toFixed(4)}, ${s.last_ping.lng.toFixed(4)} · ${when(s.last_ping.at)}`]);
+    if (s.delivered_at) rows.push(['Handed over', `by hauler · ${when(s.delivered_at)}`]);
+  }
   if (deal.cancel_reason) rows.push(['Cancelled', deal.cancel_reason]);
   return (
     <table className="facts">

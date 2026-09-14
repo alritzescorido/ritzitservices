@@ -278,6 +278,7 @@ create table offers (
   status           offer_status not null default 'pending',
   needs_hauler     boolean not null default true,   -- buyer books a hauler in the app, or brings a truck
   pickup_on        date,                            -- buyer's proposed pickup day
+  dropoff_location_code text references locations(psgc_code), -- where the buyer wants the animals delivered
   note             text,
   responded_by     uuid references users(id),       -- who accepted, rejected or countered it
   responded_at     timestamptz,
@@ -303,6 +304,7 @@ create table deals (
   delivered_weight_kg numeric(9,2),                -- actual at scale
   municipality_code  text not null references locations(psgc_code), -- farm's municipality
   province_code      text not null references locations(psgc_code),
+  dropoff_location_code text references locations(psgc_code),         -- buyer's delivery point, for the haul job
   state              deal_state not null default 'accepted',
   needs_hauler       boolean not null default true,
   outlier_flag       boolean not null default false,  -- >40% from province median
@@ -360,7 +362,7 @@ create table hauler_profiles (
 
 create table shipments (
   id                    uuid primary key default gen_random_uuid(),
-  deal_id               uuid not null unique references deals(id),
+  deal_id               uuid not null references deals(id),
   hauler_id             uuid not null references users(id),
   status                shipment_status not null default 'assigned',
   shipping_permit_no    text,                      -- required before pickup
@@ -370,15 +372,20 @@ create table shipments (
   picked_up_at          timestamptz,
   delivered_at          timestamptz,
   agreed_fee            numeric(10,2),
+  vehicle_plate         text,                      -- copied from the hauler profile at acceptance
+  photo_keys            text[] not null default '{}',  -- pickup and delivery photos, storage keys
+  cancel_reason         text,
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );
 create index on shipments (hauler_id, status);
+create unique index shipments_one_live_per_deal on shipments (deal_id) where status <> 'cancelled'; -- a withdrawn hauler frees the job
 
 create table shipment_events (
   id          bigserial primary key,
   shipment_id uuid not null references shipments(id) on delete cascade,
   status      shipment_status not null,
+  kind        text,                -- position | checkpoint | delay | problem | pickup | handover | cancelled
   geo         geo_point,
   photo_key   text,
   note        text,
@@ -637,6 +644,7 @@ returns boolean language sql immutable as $$
     ('accepted','hauler_assigned'), ('accepted','delivered'),      -- buyer self-hauls
     ('accepted','cancelled'),
     ('hauler_assigned','in_transit'), ('hauler_assigned','cancelled'),
+    ('hauler_assigned','accepted'),                                   -- hauler withdrew before pickup, job reopens
     ('in_transit','delivered'),
     ('delivered','settled'), ('delivered','disputed'),
     ('disputed','settled'), ('disputed','refunded'), ('disputed','delivered')   -- dismissed dispute resumes settlement

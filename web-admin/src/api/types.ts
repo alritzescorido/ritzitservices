@@ -165,11 +165,32 @@ export interface Deal {
   outlier_flag: boolean;
   counts_for_price: boolean;
   location: LocationWithPath;
+  dropoff: LocationWithPath | null;
+  shipment: ShipmentSummary | null;
   events?: DealEvent[];
   accepted_at: string;
   delivered_at: string | null;
   settled_at: string | null;
   cancelled_at: string | null;
+}
+
+export type ShipmentStatus = 'assigned' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled';
+
+/** The hauler's record as it appears inside a deal. */
+export interface ShipmentSummary {
+  id: string;
+  status: ShipmentStatus;
+  hauler_id: string;
+  hauler_name: string;
+  vehicle_plate: string | null;
+  shipping_permit_no: string | null;
+  vet_health_cert_no: string | null;
+  head_count_at_pickup: number | null;
+  agreed_fee: string | null;
+  scheduled_pickup_at: string | null;
+  picked_up_at: string | null;
+  delivered_at: string | null;
+  last_ping: { lat: number; lng: number; at: string } | null;
 }
 
 export type DisputeStatus = 'open' | 'under_review' | 'resolved_settled' | 'resolved_refunded' | 'dismissed';

@@ -6,7 +6,7 @@ import { parseOr } from '../common/problem.js';
 import { StorageService } from './storage.service.js';
 
 const CreateUpload = z.object({
-  purpose: z.enum(['user_document', 'farm_photo', 'lot_photo', 'vaccination_doc']),
+  purpose: z.enum(['user_document', 'farm_photo', 'lot_photo', 'vaccination_doc', 'shipment_photo']),
   content_type: z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']),
   byte_size: z.coerce.number().int().min(1),
 });

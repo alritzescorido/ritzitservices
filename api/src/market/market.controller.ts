@@ -35,6 +35,7 @@ const OfferInputZ = z.object({
   heads: z.number().int().min(1),
   pickup_on: DateZ.nullable().optional(),
   needs_hauler: z.boolean().default(true),
+  dropoff_location_code: z.string().regex(/^[0-9]{10}$/, 'PSGC code').nullable().optional(),
   note: z.string().max(300).nullable().optional(),
 });
 const CounterZ = z.object({ price: Money, heads: z.number().int().min(1), note: z.string().max(300).nullable().optional() });

@@ -54,6 +54,7 @@ Three e2e suites, each on its own in-memory database:
 | `src/prices/` | Weight classes, board, running price, history. Reads `running_price()` and `price_snapshots` only, never raw deals |
 | `src/farms/` | Farms, lots, vaccinations with `If-Match` versions; the offline `/sync` batch with temporary ids |
 | `src/market/` | Phase 2: listings with the board price alongside, offers and counter chains, deals through the SQL state machine (deliver, pay, confirm, cancel, dispute, rate), admin dispute resolution and outlier review. Settlement refreshes today's snapshot |
+| `src/logistics/` | Phase 3: hauler profile, job board of accepted deals that want a hauler (restricted zones excluded), accept with capacity check, pickup checklist that gates the trip (permit, vet certificate, head count, load photo), transit pings, hand-over, withdrawal before pickup. Drives the deal through `DealsService.transition` |
 | `src/storage/` | Signed upload and view URLs; local provider stores files under `UPLOAD_DIR` and checks magic bytes |
 | `src/admin/` | Verification queue and decisions, document review, reference prices and CSV import, restricted zones, snapshot refresh, audit log. Every write audits itself |
 | `src/common/idempotency.ts` | `Idempotency-Key` store: same key and body replays the stored response, different body is 422 |
@@ -79,7 +80,7 @@ The authenticator secret is issued on the first sign-in and confirmed by the fir
 
 ## Demo data
 
-`scripts/load-sql.mjs` runs a SQL file against a local PGlite directory (stop the API first; the directory is single-process). `scripts/seed-demo.mjs` fills a running dev API with three farmers with farms, lots and a clearance, a buyer and a hauler with pending documents, nine reference prices and one restricted zone, all through the public endpoints so it exercises the same paths as the apps. Development only.
+`scripts/load-sql.mjs` runs a SQL file against a local PGlite directory (stop the API first; the directory is single-process). `scripts/seed-demo.mjs` fills a running dev API with three farmers with farms, lots and a clearance, a buyer and a hauler with pending documents, nine reference prices and one restricted zone, all through the public endpoints so it exercises the same paths as the apps. `scripts/seed-demo-deals.mjs` then settles one deal and leaves one dispute open; `scripts/seed-demo-haul.mjs` registers the demo hauler's truck and hauls a third deal through the checklist, pings and hand-over. All three take the admin credentials as arguments. Development only.
 
 ## Scheduled jobs
 
@@ -91,4 +92,4 @@ The process with `SCHEDULER_ENABLED=true` (default) recomputes price snapshots f
 
 ## Not built yet
 
-Deposits through PayMongo (decision 3), hauler jobs and shipments (Phase 3), push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration runner.
+Deposits, disbursements and payout account verification through PayMongo (decision 3), push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration runner.

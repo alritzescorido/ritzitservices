@@ -211,17 +211,17 @@ Legal and payments
 ### Recommended work
 
 Backend
-- Hauler profiles and vehicles, job publication on `booked`, accept with capacity check, pickup checklist records with photos, transit pings, delivered event feeding the buyer's receive screen.
+- Hauler profiles and vehicles, job publication on `booked`, accept with capacity check, pickup checklist records with photos, transit pings, delivered event feeding the buyer's receive screen. (Built 14 Sep 2026: `api/src/logistics/`, 12 operations under the Logistics tag, 6 e2e tests. A hauler may withdraw before pickup, which reopens the job. Photos are storage keys the hauler uploaded; the trip cannot start without all four checklist items.)
 - Disbursements: on `settled`, transfer the deposit net of fee to the farmer's payout account through the PayMongo transfers API; on buyer no-show past the window, forfeit to farmer; on farmer cancel, refund. Every movement writes a ledger row and a notification.
 - Payout account verification by ₱1 test transfer, name match against the ID on file.
-- Restricted zones table and admin control, checked at job publication.
+- Restricted zones table and admin control, checked at job publication. (Built: the job board and accept both exclude deals whose species is restricted at the farm's municipality, province or the delivery point.)
 
 Mobile
 - Hauler app: registration, pending state, jobs, pickup checklist with offline photo queue, in transit with location sharing, history, Me with vehicle.
 - Farmer and buyer deal screens show hauler status and pings.
 
 Admin web
-- Hauler verification path (OR/CR, plate match), restricted zones editor, shipment view inside a deal.
+- Hauler verification path (OR/CR, plate match), restricted zones editor, shipment view inside a deal. (Built: haulers go through the same verification queue with their OR/CR; the restricted zones editor and the shipment facts inside the Deals detail are in the console. Plate match against the OR/CR is a manual check for now.)
 
 Design
 - Hauler flow review with 3 haulers on the road, not in a room.
