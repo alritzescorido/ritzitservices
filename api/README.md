@@ -75,6 +75,10 @@ npm run admin:create -- --phone +639170000001 --email a.reyes@example.ph --name 
 
 The authenticator secret is issued on the first sign-in and confirmed by the first valid code. Five failed attempts lock the account for 15 minutes. No authenticator app at hand? `npm run admin:totp -- --secret <the secret shown>` prints the current code. This implements decision 5 as assumed in the wireframes; switch to phone OTP on a whitelist if staff prefer.
 
+## Demo data
+
+`scripts/load-sql.mjs` runs a SQL file against a local PGlite directory (stop the API first; the directory is single-process). `scripts/seed-demo.mjs` fills a running dev API with three farmers with farms, lots and a clearance, a buyer and a hauler with pending documents, nine reference prices and one restricted zone, all through the public endpoints so it exercises the same paths as the apps. Development only.
+
 ## Scheduled jobs
 
 The process with `SCHEDULER_ENABLED=true` (default) recomputes price snapshots for yesterday and today at 05:00 Asia/Manila (`SNAPSHOT_HOUR_MANILA`) and purges expired idempotency keys, OTP challenges and dead refresh tokens every hour. Every run is written to `job_runs`. Run exactly one such node, or set it to `false` everywhere and call `POST /admin/price-snapshots/refresh` from the platform's cron.
