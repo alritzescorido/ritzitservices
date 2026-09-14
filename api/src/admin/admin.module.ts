@@ -8,11 +8,12 @@ import { AdminAuthController } from './admin-auth.controller.js';
 import { AdminAuthService } from './admin-auth.service.js';
 import { AdminController } from './admin.controller.js';
 import { AdminService } from './admin.service.js';
+import { ReportsService } from './reports.service.js';
 
 @Module({
   imports: [AuthModule, UsersModule, FarmsModule, LocationsModule, MarketModule],
   controllers: [AdminController, AdminAuthController],
-  providers: [AdminService, AdminAuthService],
+  providers: [AdminService, AdminAuthService, ReportsService],
   exports: [AdminAuthService],
 })
 export class AdminModule {}

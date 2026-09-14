@@ -7,7 +7,7 @@ import { loadConfig } from './config.js';
 async function bootstrap() {
   if (existsSync('.env')) process.loadEnvFile('.env'); // local only; deployments set real env vars
   const config = loadConfig(); // fail fast on a bad environment, before Nest boots
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true }); // rawBody: payment webhook signatures
   app.setGlobalPrefix('v1'); // servers in docs/api/openapi.yaml end in /v1
   app.enableCors({
     origin: config.CORS_ORIGINS,

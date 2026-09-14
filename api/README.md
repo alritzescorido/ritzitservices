@@ -55,6 +55,8 @@ Three e2e suites, each on its own in-memory database:
 | `src/farms/` | Farms, lots, vaccinations with `If-Match` versions; the offline `/sync` batch with temporary ids |
 | `src/market/` | Phase 2: listings with the board price alongside, offers and counter chains, deals through the SQL state machine (deliver, pay, confirm, cancel, dispute, rate), admin dispute resolution and outlier review. Settlement refreshes today's snapshot |
 | `src/logistics/` | Phase 3: hauler profile, job board of accepted deals that want a hauler (restricted zones excluded), accept with capacity check, pickup checklist that gates the trip (permit, vet certificate, head count, load photo), transit pings, hand-over, withdrawal before pickup. Drives the deal through `DealsService.transition` |
+| `src/payments/` | Booking deposits (decision 3 as proposed): 10% of the estimate, 2,000 to 20,000 pesos, 2 hours to pay through a hosted checkout. `PaymentProvider` interface with a PayMongo implementation (Checkout Sessions, Refunds, Transfers, signed webhooks) and a fake for tests and demos. Deposits are released to the farmer on settlement, forfeited when the buyer cancels, refunded when the farmer cancels, decided by the admin in a dispute. Ledger rows per movement, webhook inbox keyed by event id, farmer payout account verified by a one-peso transfer. Off unless `PAYMENTS_PROVIDER` is set |
+| `src/admin/reports.service.ts` | Phase 4: period summary (volume and price by species, users by role, time to settle, dispute rate, deposit outcomes, hauling, thin municipalities), users list, deals CSV |
 | `src/storage/` | Signed upload and view URLs; local provider stores files under `UPLOAD_DIR` and checks magic bytes |
 | `src/admin/` | Verification queue and decisions, document review, reference prices and CSV import, restricted zones, snapshot refresh, audit log. Every write audits itself |
 | `src/common/idempotency.ts` | `Idempotency-Key` store: same key and body replays the stored response, different body is 422 |
@@ -92,4 +94,4 @@ The process with `SCHEDULER_ENABLED=true` (default) recomputes price snapshots f
 
 ## Not built yet
 
-Deposits, disbursements and payout account verification through PayMongo (decision 3), push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration runner.
+Push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration runner, daily reconciliation of the ledger against the PayMongo wallet balance, photo and ping retention jobs. The PayMongo provider is written against the public API reference and has not been run against a live account yet.

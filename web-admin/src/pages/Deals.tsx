@@ -202,6 +202,26 @@ export function Deals() {
   );
 }
 
+function depositLine(deal: Deal): string {
+  if (!deal.deposit_required) return 'not required (no payment provider)';
+  const dp = deal.deposit;
+  if (!dp) return 'required, not yet requested';
+  switch (dp.status) {
+    case 'pending':
+      return `${money(dp.amount)} requested · pay by ${when(dp.expires_at)}`;
+    case 'paid':
+      return `${money(dp.amount)} paid ${when(dp.paid_at)} · held until the deal closes`;
+    case 'lapsed':
+      return `${money(dp.amount)} not paid in time · acceptance lapsed`;
+    case 'released':
+      return `${money(dp.amount)} released to the farmer ${when(dp.closed_at)}`;
+    case 'forfeited':
+      return `${money(dp.amount)} forfeited to the farmer ${when(dp.closed_at)}`;
+    case 'refunded':
+      return `${money(dp.amount)} refunded to the buyer ${when(dp.closed_at)}`;
+  }
+}
+
 function haulingLine(deal: Deal): string {
   if (!deal.needs_hauler) return 'buyer brings own truck';
   const to = deal.dropoff ? ` → ${deal.dropoff.display_name}` : '';
@@ -215,6 +235,7 @@ export function DealFacts({ deal }: { deal: Deal }) {
     ['Agreed', `${money(deal.agreed_price)}${unitLabel(deal.unit)} × ${deal.agreed_heads} heads${deal.agreed_weight_kg ? ` · ${deal.agreed_weight_kg} kg declared` : ''} · est. ${money(deal.estimated_total)}`],
     ['Delivered', deal.delivered_heads === null ? 'not yet' : `${deal.delivered_heads} heads${deal.delivered_weight_kg ? ` · ${deal.delivered_weight_kg} kg weighed` : ''} · ${money(deal.final_total)} · ${when(deal.delivered_at)}`],
     ['Hauling', haulingLine(deal)],
+    ['Deposit', depositLine(deal)],
     ['Payment', deal.payment_method ? `${deal.payment_method}${deal.payment_reference ? ` ref ${deal.payment_reference}` : ''} · buyer ${when(deal.buyer_paid_at)}${deal.farmer_confirmed_at ? ` · farmer confirmed ${when(deal.farmer_confirmed_at)}` : ' · farmer has not confirmed'}` : 'not recorded'],
   ];
   if (deal.shipment) {

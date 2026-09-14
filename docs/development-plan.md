@@ -212,8 +212,8 @@ Legal and payments
 
 Backend
 - Hauler profiles and vehicles, job publication on `booked`, accept with capacity check, pickup checklist records with photos, transit pings, delivered event feeding the buyer's receive screen. (Built 14 Sep 2026: `api/src/logistics/`, 12 operations under the Logistics tag, 6 e2e tests. A hauler may withdraw before pickup, which reopens the job. Photos are storage keys the hauler uploaded; the trip cannot start without all four checklist items.)
-- Disbursements: on `settled`, transfer the deposit net of fee to the farmer's payout account through the PayMongo transfers API; on buyer no-show past the window, forfeit to farmer; on farmer cancel, refund. Every movement writes a ledger row and a notification.
-- Payout account verification by ₱1 test transfer, name match against the ID on file.
+- Disbursements: on `settled`, transfer the deposit net of fee to the farmer's payout account through the PayMongo transfers API; on buyer no-show past the window, forfeit to farmer; on farmer cancel, refund. Every movement writes a ledger row and a notification. (Built 14 Sep 2026 in `api/src/payments/` under the model proposed in `docs/payments-paymongo.md`, ahead of decision 3: the deal keeps its states and carries a deposit status alongside, so "booked" is accepted plus deposit paid. Release, forfeit, refund and the admin's choice inside a dispute are built; automatic no-show forfeiture after the pickup window is not, the admin decides through a dispute. The PayMongo client is written against the public API reference and has not run against a live account.)
+- Payout account verification by ₱1 test transfer, name match against the ID on file. (Built: `PUT /me/payout-account`.)
 - Restricted zones table and admin control, checked at job publication. (Built: the job board and accept both exclude deals whose species is restricted at the farm's municipality, province or the delivery point.)
 
 Mobile
@@ -255,11 +255,11 @@ Backend and Data
 - Snapshot job on settle and nightly: median, count, low, high per species, weight class, municipality, province, with the 5-deal threshold and the fallback ladder.
 - Outlier rule: deals more than 40% from the province median are held for admin review before they count. Disputed deals never count.
 - 30-day change and percentile band on every board row.
-- Reports API: volume and price by province, active users by role, time to settle, dispute rate, deposit outcomes, thin municipalities.
-- Rate limit on settlements per account per week to blunt manipulation.
+- Reports API: volume and price by province, active users by role, time to settle, dispute rate, deposit outcomes, thin municipalities. (Built 14 Sep 2026: `GET /admin/reports/summary`, `GET /admin/reports/deals.csv`, `GET /admin/users`.)
+- Rate limit on settlements per account per week to blunt manipulation. (Built: a buyer past `SETTLEMENTS_PER_BUYER_PER_WEEK` still settles, but the deal is flagged and kept out of the board until an admin lets it count.)
 
 Admin web
-- Overview page as wireframed, reports page with CSV export, outlier review queue.
+- Overview page as wireframed, reports page with CSV export, outlier review queue. (Built: Reports, Users and Deposits screens; the outlier review lives in Deals with the "Flagged only" filter.)
 
 Mobile
 - Board shows trend and band; "based on N sales in X" copy switches between rungs; a small "how this price is made" sheet.
@@ -324,7 +324,7 @@ Only planned in outline; the go/no-go shapes it.
 |---|---|---|---|---|
 | 1 | Pilot provinces and lead species | Product | End of week 2 | Open |
 | 2 | Backend stack: NestJS or Laravel | Tech lead | End of week 1 | Assumed NestJS on 13 Sep 2026 (Node tooling on hand, first contract slice built). Reverse before week 3 if hiring says Laravel |
-| 3 | Deposit model for the pilot: yes, behind a flag, or no | Product with counsel | Week 6 | Proposed in `docs/payments-paymongo.md` |
+| 3 | Deposit model for the pilot: yes, behind a flag, or no | Product with counsel | Week 6 | Proposed in `docs/payments-paymongo.md`; built behind `PAYMENTS_PROVIDER` on 14 Sep 2026 with the proposed numbers as settings. Still needs the legal opinion on OPS registration and a PayMongo account before it is switched on for real money |
 | 4 | Public price board without login | Product | End of week 2 | Open, API assumes public |
 | 5 | Admin sign-in method (email plus authenticator, or phone OTP on a whitelist) | Tech lead | Week 3 | Built as email, password and authenticator on 13 Sep 2026; confirm or switch before the console UI starts |
 | 6 | Deposit size and cap, grace windows | Product from field data | Week 2, revisit week 14 | Proposed 10%, ₱2,000 to ₱20,000, 2 hours |

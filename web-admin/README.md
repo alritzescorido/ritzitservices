@@ -28,13 +28,16 @@ Sign in at http://localhost:5173 with that email and password. The first sign-in
 | `/` | Overview | API health, last snapshot, verification backlog, reference prices in force, recent admin actions. Button to recompute snapshots now |
 | `/verification` | Verification queue | Oldest first, filter by role and province. Detail with documents (view, accept, reject with note), farms, a checklist, and verify or reject with a note the user reads |
 | `/deals` | Deal status | Every deal with filters by state, species, province and flagged outliers. Detail with agreed versus delivered figures, the hauler's shipment (truck, permit and vet certificate numbers, heads loaded, last position, hand-over), payment record, timeline; let a flagged settlement count or keep it out |
-| `/disputes` | Disputes | Open, under review or all. Both sides' figures side by side, the deal timeline, and resolution as settled (optionally at a corrected weight), refunded or dismissed with a note both parties read |
+| `/disputes` | Disputes | Open, under review or all. Both sides' figures side by side, the deal timeline, and resolution as settled (optionally at a corrected weight), refunded or dismissed with a note both parties read. When a booking deposit was paid, a fourth line decides where it goes |
+| `/deposits` | Deposits | What the gateway wallet holds, what went to farmers, what went back to buyers, and payouts that failed |
+| `/reports` | Reports | Period and province filters. Deals by state, settled volume and median price by species, people by role with activity, time to settle, dispute rate, deposits, hauling, thin municipalities. Export deals as CSV |
+| `/users` | Users | Everyone, filterable by role, status and name or phone, with province, deal count and last sign-in. Pending people link to the verification queue |
 | `/reference-prices` | Reference prices | Current or full history per province and species. Set a price (species-wide or per class, large changes flagged). Import the PSA CSV, all or nothing |
 | `/restricted-zones` | Restricted zones editor | Active on a date, or everything. Create with a municipality search; set an end date |
 | `/audit-log` | Audit log | Newest first, filter by action and target, before and after JSON |
 | `/account` | Account | Change password (ends other sessions), sign out |
 
-Not built: Reports (Phase 4), Users list.
+Not built: Settings, photo viewing on shipments.
 
 ## Build and deploy
 

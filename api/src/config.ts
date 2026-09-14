@@ -49,6 +49,21 @@ const schema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
   SNAPSHOT_HOUR_MANILA: z.coerce.number().int().min(0).max(23).default(5),
+  // Booking deposits (decision 3). off: deals behave as before, no deposit asked.
+  // fake: in-process provider for tests and demos, paid through the webhook with no signature.
+  // paymongo: hosted Checkout Sessions, refunds and transfers through api.paymongo.com.
+  PAYMENTS_PROVIDER: z.enum(['off', 'fake', 'paymongo']).default('off'),
+  PAYMONGO_SECRET_KEY: z.string().optional(),
+  PAYMONGO_WEBHOOK_SECRET: z.string().optional(),
+  PAYMONGO_API_BASE: z.string().url().default('https://api.paymongo.com/v1'),
+  DEPOSIT_PERCENT: z.coerce.number().min(1).max(100).default(10),
+  DEPOSIT_MIN_PESOS: z.coerce.number().int().min(1).default(2000),
+  DEPOSIT_MAX_PESOS: z.coerce.number().int().min(1).default(20000),
+  DEPOSIT_PAY_WINDOW_MINUTES: z.coerce.number().int().min(5).default(120),
+  // Where the buyer lands after the hosted checkout (mobile deep link or web page).
+  PAYMENTS_RETURN_URL: z.string().url().default('http://localhost:3000/v1/payments/return'),
+  // Settlements per buyer per rolling week before further ones are held for admin review (Phase 4).
+  SETTLEMENTS_PER_BUYER_PER_WEEK: z.coerce.number().int().min(1).default(20),
 });
 
 export type AppConfig = z.infer<typeof schema>;

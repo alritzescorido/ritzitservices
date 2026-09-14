@@ -38,6 +38,9 @@ const NOT_RESTRICTED = `not exists (
      and rz.location_code in (d.municipality_code, d.province_code, d.dropoff_location_code)
      and rz.starts_on <= current_date and (rz.ends_on is null or rz.ends_on >= current_date))`;
 
+// A job is published once the buyer's booking deposit is paid, or at once when no deposit is required.
+const BOOKED = `(not d.deposit_required or d.deposit_status = 'paid')`;
+
 const JOB_SQL = `
   select d.id, d.species::text as species, d.weight_class_id, d.agreed_heads, d.agreed_weight_kg::text as agreed_weight_kg,
          d.municipality_code, d.province_code, d.dropoff_location_code, d.accepted_at::text as accepted_at,
@@ -142,7 +145,7 @@ export class LogisticsService {
     const profile = await this.profileRow(user.sub);
     const capacity = profile ? int(profile.capacity_heads) : null;
     const params: unknown[] = [];
-    const where = [`d.state = 'accepted'`, 'd.needs_hauler', NOT_RESTRICTED];
+    const where = [`d.state = 'accepted'`, 'd.needs_hauler', BOOKED, NOT_RESTRICTED];
     if (q.species) {
       params.push(q.species);
       where.push(`d.species = $${params.length}::species`);
@@ -173,8 +176,8 @@ export class LogisticsService {
     this.requireHauler(user, true);
     const profile = await this.profileRow(user.sub);
     if (!profile) throw ProblemException.conflict('Add your truck under Profile before taking jobs');
-    const job = await this.db.one<Record<string, unknown>>(`${JOB_SQL} where d.id = $1 and d.state = 'accepted' and d.needs_hauler and ${NOT_RESTRICTED}`, [dealId]);
-    if (!job) throw ProblemException.conflict('This job is no longer available or is inside a restricted zone');
+    const job = await this.db.one<Record<string, unknown>>(`${JOB_SQL} where d.id = $1 and d.state = 'accepted' and d.needs_hauler and ${BOOKED} and ${NOT_RESTRICTED}`, [dealId]);
+    if (!job) throw ProblemException.conflict('This job is no longer available: taken, waiting for the buyer\'s deposit, or inside a restricted zone');
     if (int(job.agreed_heads) > int(profile.capacity_heads)) {
       throw ProblemException.conflict(`This job is ${job.agreed_heads} heads; your truck is registered for ${profile.capacity_heads}`);
     }

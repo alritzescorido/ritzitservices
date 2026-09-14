@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nest
 import { CONFIG, type AppConfig } from '../config.js';
 import { DbService } from '../db/db.service.js';
 import { MarketService } from '../market/market.service.js';
+import { DepositsService } from '../payments/deposits.service.js';
 
 // The two housekeeping jobs the API needs before Phase 2 adds on-settle
 // refreshes: the 5:00 AM Manila snapshot that the board promises ("Updated
@@ -11,6 +12,7 @@ import { MarketService } from '../market/market.service.js';
 // the platform's cron. Every run is written to job_runs so ops can see it.
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
+const FIVE_MIN = 5 * 60 * 1000;
 
 @Injectable()
 export class SchedulerService implements OnModuleInit, OnModuleDestroy {
@@ -21,6 +23,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     @Inject(CONFIG) private readonly config: AppConfig,
     @Inject(DbService) private readonly db: DbService,
     @Inject(MarketService) private readonly market: MarketService,
+    @Inject(DepositsService) private readonly deposits: DepositsService,
   ) {}
 
   onModuleInit() {
@@ -30,6 +33,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
     this.scheduleDaily();
     this.timers.push(setInterval(() => void this.runJob('purge_expired', () => this.purgeExpired()), HOUR));
+    if (this.deposits.enabled) this.timers.push(setInterval(() => void this.runJob('deposit_sweep', () => this.deposits.sweep()), FIVE_MIN));
     this.log.log(`scheduler on: nightly snapshots at ${String(this.config.SNAPSHOT_HOUR_MANILA).padStart(2, '0')}:00 Asia/Manila, purge hourly`);
   }
 

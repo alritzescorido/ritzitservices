@@ -167,6 +167,8 @@ export interface Deal {
   location: LocationWithPath;
   dropoff: LocationWithPath | null;
   shipment: ShipmentSummary | null;
+  deposit_required: boolean;
+  deposit: DepositSummary | null;
   events?: DealEvent[];
   accepted_at: string;
   delivered_at: string | null;
@@ -191,6 +193,64 @@ export interface ShipmentSummary {
   picked_up_at: string | null;
   delivered_at: string | null;
   last_ping: { lat: number; lng: number; at: string } | null;
+}
+
+export type DepositStatus = 'pending' | 'paid' | 'lapsed' | 'released' | 'forfeited' | 'refunded';
+
+export interface DepositSummary {
+  id: string;
+  status: DepositStatus;
+  amount: string;
+  expires_at: string;
+  paid_at: string | null;
+  closed_at: string | null;
+}
+
+export interface Deposit extends DepositSummary {
+  deal_id: string;
+  buyer_id: string;
+  farmer_id: string;
+  buyer_name: string;
+  farmer_name: string;
+  provider: string;
+  checkout_url: string | null;
+  payment_method: string | null;
+  fee: string | null;
+  net: string | null;
+  transfer_status: 'pending' | 'succeeded' | 'failed' | null;
+  failure_reason: string | null;
+  created_at: string;
+}
+
+export interface DepositTotals {
+  held: string;
+  released: string;
+  forfeited: string;
+  refunded: string;
+  pending_count: number;
+}
+
+export interface AdminUserRow extends User {
+  province_name: string | null;
+  deals_count: number;
+  last_seen_at: string | null;
+}
+
+export interface ReportSummary {
+  from: string;
+  to: string;
+  province_code: string | null;
+  deals: {
+    by_state: { state: DealState; count: number }[];
+    settled_by_species: { species: Species; unit: 'per_kg_liveweight' | 'per_head'; deals: number; heads: number; weight_kg: string | null; gross_value: string; median_price: string | null }[];
+    outliers_pending_review: number;
+  };
+  users: { by_role: { role: Role; total: number; verified: number; pending: number; active_in_period: number }[] };
+  settlement: { settled: number; median_hours_accept_to_settle: number | null; p90_hours_accept_to_settle: number | null };
+  disputes: { opened: number; open_now: number; rate_pct: number | null };
+  deposits: { asked: number; paid: number; lapsed: number; released: number; forfeited: number; refunded: number; held_net: string };
+  hauling: { deals_needing_hauler: number; hauled_in_app: number; checklist_complete_pct: number | null };
+  thin_municipalities: { location: LocationWithPath; species: Species; listings_30d: number; settled_30d: number; needed: number }[];
 }
 
 export type DisputeStatus = 'open' | 'under_review' | 'resolved_settled' | 'resolved_refunded' | 'dismissed';

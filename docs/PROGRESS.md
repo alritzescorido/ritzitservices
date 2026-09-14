@@ -27,3 +27,19 @@ Phase 3 backend built: hauler profile, job board with restricted-zone and capaci
 Gate: not passed. Needs 10 real deals hauled through the app and the deposit flows, which wait on decision 3.
 
 Next: decision 3 so the PayMongo work can start; Flutter apps; Phase 4 reports.
+
+## 2026-09-14 (deposits and Phase 4)
+
+Checks: SQL tests green on PGlite, API 45 e2e tests across 7 suites green, API lint clean, contract lint 0 errors, console lint, tests and build green.
+
+Decision 3 built ahead of the decision, behind `PAYMENTS_PROVIDER` (off by default): booking deposit of 10% of the estimate, 2,000 to 20,000 pesos, 2 hours to pay through a hosted checkout; the hauler job is published only once paid; released to the farmer on settlement, forfeited when the buyer cancels, refunded when the farmer cancels, decided by the admin inside a dispute; unpaid deposits lapse and the listing returns to the board. Ledger rows per movement, webhook inbox keyed by event id, farmer payout account verified by a one-peso transfer. PayMongo client written against the public API reference, not yet run against a live account; a fake gateway serves tests and the demo. Migration `0004_payments_reports.sql`.
+
+Phase 4 backend: reports summary, deals CSV, users list, weekly settlement limit per buyer (flagged and held out of the board, not blocked). The snapshot job, outlier rule, 30-day change and band were already in place from Phases 1 and 2.
+
+Console: Deposits, Reports (with CSV export) and Users screens; deposit line on the deal detail; deposit choice on dispute resolution.
+
+Not built: automatic no-show forfeiture after the pickup window (admin decides through a dispute), ledger reconciliation against the wallet, photo and ping retention, mobile apps, Settings screen.
+
+Gates: Phase 3 still needs 10 real hauled deals and real deposits; Phase 4 needs two municipalities with live medians for two weeks, which needs real trade.
+
+Next: legal opinion on OPS registration and a PayMongo test account so the provider can be exercised for real; Flutter apps; Phase 5 pilot hardening.

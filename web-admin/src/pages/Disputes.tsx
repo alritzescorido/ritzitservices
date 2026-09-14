@@ -87,6 +87,7 @@ export function Disputes() {
 function DisputeDetail({ d, onChanged }: { d: Dispute; onChanged: () => Promise<void> }) {
   const [deal, setDeal] = useState<Deal>(d.deal);
   const [outcome, setOutcome] = useState<'settled' | 'refunded' | 'dismissed'>('settled');
+  const [depositChoice, setDepositChoice] = useState<'' | 'release_to_farmer' | 'refund_to_buyer' | 'hold'>('');
   const [weight, setWeight] = useState('');
   const [resolution, setResolution] = useState('');
   const [busy, setBusy] = useState(false);
@@ -114,7 +115,7 @@ function DisputeDetail({ d, onChanged }: { d: Dispute; onChanged: () => Promise<
     setBusy(true);
     setError(null);
     try {
-      await adminResolveDispute(d.id, { outcome, resolution: resolution.trim(), delivered_weight_kg: outcome === 'settled' && weight ? weight : undefined });
+      await adminResolveDispute(d.id, { outcome, resolution: resolution.trim(), delivered_weight_kg: outcome === 'settled' && weight ? weight : undefined, deposit: depositChoice || undefined });
       await onChanged();
     } catch (err) {
       setError(err);
@@ -195,6 +196,16 @@ function DisputeDetail({ d, onChanged }: { d: Dispute; onChanged: () => Promise<
               </div>
             </label>
           </div>
+          {deal.deposit && deal.deposit.status === 'paid' ? (
+            <Field label={`Booking deposit of ${money(deal.deposit.amount)}, paid by the buyer`} hint="Leave on the default and it follows the outcome: settle releases it to the farmer, refund returns it to the buyer, dismiss holds it.">
+              <select id={`dep-${d.id}`} value={depositChoice} onChange={(e) => setDepositChoice(e.target.value as typeof depositChoice)}>
+                <option value="">Follow the outcome</option>
+                <option value="release_to_farmer">Release to the farmer</option>
+                <option value="refund_to_buyer">Refund to the buyer</option>
+                <option value="hold">Hold for now</option>
+              </select>
+            </Field>
+          ) : null}
           <Field label="Decision note (both parties read this)">
             <textarea id={`r-${d.id}`} rows={3} required minLength={3} value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="e.g. No scale at pickup, so neither weight is proven. 2% shrink is our published allowance for trips over 3 hours." />
           </Field>

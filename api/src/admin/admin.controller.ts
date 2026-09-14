@@ -6,6 +6,7 @@ import { IdempotencyService, requireIdempotencyKey } from '../common/idempotency
 import { parseOr } from '../common/problem.js';
 import { DealsService } from '../market/deals.service.js';
 import { AdminService } from './admin.service.js';
+import { ReportsService } from './reports.service.js';
 
 const Uuid = z.string().uuid();
 const Psgc = z.string().regex(/^[0-9]{9,10}$/);
@@ -35,7 +36,17 @@ const Resolve = z.object({
   outcome: z.enum(['settled', 'refunded', 'dismissed']),
   resolution: z.string().trim().min(3).max(1000),
   delivered_weight_kg: z.string().regex(/^[0-9]+(\.[0-9]{1,2})?$/).nullable().optional(),
+  deposit: z.enum(['release_to_farmer', 'refund_to_buyer', 'hold']).nullable().optional(),
 });
+const UsersQuery = z.object({
+  role: z.enum(['farmer', 'buyer', 'hauler', 'admin']).optional(),
+  verification: z.enum(['pending', 'verified', 'rejected', 'suspended']).optional(),
+  q: z.string().trim().max(60).optional(),
+  cursor: z.string().optional(),
+  limit: Limit,
+});
+const ReportQuery = z.object({ from: DateZ.optional(), to: DateZ.optional(), province_code: Psgc.optional() });
+const CsvQuery = ReportQuery.extend({ state: z.enum(['accepted', 'hauler_assigned', 'in_transit', 'delivered', 'settled', 'cancelled', 'disputed', 'refunded']).optional() });
 const OutlierReview = z.object({ counts_for_price: z.boolean(), note: z.string().max(500).nullable().optional() });
 const DealsQuery = z.object({
   state: z.enum(['accepted', 'hauler_assigned', 'in_transit', 'delivered', 'settled', 'cancelled', 'disputed', 'refunded']).optional(),
@@ -56,7 +67,25 @@ export class AdminController {
     @Inject(AdminService) private readonly admin: AdminService,
     @Inject(DealsService) private readonly deals: DealsService,
     @Inject(IdempotencyService) private readonly idem: IdempotencyService,
+    @Inject(ReportsService) private readonly reports: ReportsService,
   ) {}
+
+  @Get('users')
+  listUsers(@Query() query: unknown) {
+    return this.reports.listUsers(parseOr(UsersQuery, query, 'query'));
+  }
+
+  @Get('reports/summary')
+  reportSummary(@Query() query: unknown) {
+    return this.reports.summary(parseOr(ReportQuery, query, 'query'));
+  }
+
+  @Get('reports/deals.csv')
+  async reportDealsCsv(@Query() query: unknown, @Res() res: Response) {
+    const q = parseOr(CsvQuery, query, 'query');
+    const csv = await this.reports.dealsCsv(q);
+    res.type('text/csv').setHeader('Content-Disposition', `attachment; filename="deals-${q.from ?? 'start'}-${q.to ?? 'today'}.csv"`).send(csv);
+  }
 
   @Get('disputes')
   async disputes(@Query('status') status?: string) {

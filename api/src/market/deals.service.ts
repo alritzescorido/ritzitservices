@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { CONFIG, type AppConfig } from '../config.js';
 import type { AccessClaims } from '../auth/auth.guard.js';
 import { SMS_PROVIDER, type SmsProvider } from '../auth/sms.provider.js';
 import { int, isoTime, money, weight } from '../common/format.js';
@@ -14,22 +15,32 @@ import { PricesService, type Species } from '../prices/prices.service.js';
 
 export type DealState = 'accepted' | 'hauler_assigned' | 'in_transit' | 'delivered' | 'settled' | 'cancelled' | 'disputed' | 'refunded';
 
+/** Booking-deposit follow-ups, registered by DepositsService when a payment provider is on. Called after commits. */
+export interface DepositHooks {
+  afterAccepted(dealId: string): Promise<void>;
+  afterSettled(dealId: string): Promise<void>;
+  afterCancelled(dealId: string, who: 'farmer' | 'buyer' | 'system'): Promise<void>;
+  afterDisputeResolved(dealId: string, decision: 'release_to_farmer' | 'refund_to_buyer' | 'hold'): Promise<void>;
+}
+
 const DEAL_SQL = `
   select d.id, d.listing_id, d.offer_id, d.farmer_id, fu.full_name as farmer_name, d.buyer_id, bu.full_name as buyer_name,
          d.species::text as species, d.weight_class_id, d.unit::text as unit, d.state::text as state,
          d.agreed_price::text as agreed_price, d.agreed_heads, d.agreed_weight_kg::text as agreed_weight_kg,
          d.delivered_heads, d.delivered_weight_kg::text as delivered_weight_kg, d.delivery_note, d.cancel_reason,
-         d.municipality_code, d.dropoff_location_code, d.needs_hauler, d.payment_method, d.payment_reference,
+         d.municipality_code, d.dropoff_location_code, d.needs_hauler, d.deposit_required, d.deposit_status::text as deposit_status, d.payment_method, d.payment_reference,
          d.buyer_paid_at::text as buyer_paid_at, d.farmer_confirmed_at::text as farmer_confirmed_at,
          d.outlier_flag, d.counts_for_price,
          d.accepted_at::text as accepted_at, d.delivered_at::text as delivered_at, d.settled_at::text as settled_at, d.cancelled_at::text as cancelled_at,
          s.id as shipment_id, s.status::text as shipment_status, s.hauler_id, hu.full_name as hauler_name, s.vehicle_plate,
          s.shipping_permit_no, s.vet_health_cert_no, s.head_count_at_pickup, s.agreed_fee::text as agreed_fee,
          s.scheduled_pickup_at::text as scheduled_pickup_at, s.picked_up_at::text as picked_up_at, s.delivered_at::text as shipment_delivered_at,
-         lp.ll as last_ping_ll, lp.at as last_ping_at
+         lp.ll as last_ping_ll, lp.at as last_ping_at,
+         dp.id as deposit_id, dp.amount::text as deposit_amount, dp.expires_at::text as deposit_expires_at, dp.paid_at::text as deposit_paid_at, dp.closed_at::text as deposit_closed_at
     from deals d join users fu on fu.id = d.farmer_id join users bu on bu.id = d.buyer_id
     left join shipments s on s.deal_id = d.id and s.status <> 'cancelled' left join users hu on hu.id = s.hauler_id
-    left join lateral (select geo_lnglat(e.geo) as ll, e.created_at::text as at from shipment_events e where e.shipment_id = s.id and e.geo is not null order by e.id desc limit 1) lp on true`;
+    left join lateral (select geo_lnglat(e.geo) as ll, e.created_at::text as at from shipment_events e where e.shipment_id = s.id and e.geo is not null order by e.id desc limit 1) lp on true
+    left join lateral (select * from deposits x where x.deal_id = d.id order by x.created_at desc limit 1) dp on true`;
 
 /** Shipment fields as they appear inside a deal; the full record lives in LogisticsService. */
 export function shipmentSummary(r: Record<string, unknown>) {
@@ -56,12 +67,26 @@ export function shipmentSummary(r: Record<string, unknown>) {
 export class DealsService {
   private readonly log = new Logger(DealsService.name);
 
+  /** Set by DepositsService when PAYMENTS_PROVIDER is not off. */
+  depositHooks: DepositHooks | null = null;
+
   constructor(
+    @Inject(CONFIG) private readonly config: AppConfig,
     @Inject(DbService) private readonly db: DbService,
     @Inject(LocationsService) private readonly locations: LocationsService,
     @Inject(PricesService) private readonly prices: PricesService,
     @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
   ) {}
+
+  private hook(fn: (h: DepositHooks) => Promise<void>) {
+    if (!this.depositHooks) return Promise.resolve();
+    return fn(this.depositHooks).catch((e) => this.log.error(`deposit hook: ${(e as Error).message}`));
+  }
+
+  /** MarketService calls this once the accept transaction has committed. */
+  afterAccepted(dealId: string) {
+    return this.hook((h) => h.afterAccepted(dealId));
+  }
 
   // ---- read ----------------------------------------------------------------
 
@@ -116,6 +141,17 @@ export class DealsService {
       location: await this.locations.get(String(r.municipality_code)),
       dropoff: r.dropoff_location_code ? await this.locations.get(String(r.dropoff_location_code)) : null,
       shipment: shipmentSummary(r),
+      deposit_required: Boolean(r.deposit_required),
+      deposit: r.deposit_id
+        ? {
+            id: String(r.deposit_id),
+            status: String(r.deposit_status),
+            amount: money(r.deposit_amount)!,
+            expires_at: isoTime(r.deposit_expires_at)!,
+            paid_at: isoTime(r.deposit_paid_at),
+            closed_at: isoTime(r.deposit_closed_at),
+          }
+        : null,
       ...(events ? { events } : {}),
       accepted_at: isoTime(r.accepted_at)!,
       delivered_at: isoTime(r.delivered_at),
@@ -271,11 +307,25 @@ export class DealsService {
     if (this.party(r, user) !== 'farmer') throw ProblemException.forbidden('Only the farmer confirms the payment arrived');
     if (r.state !== 'delivered') throw ProblemException.conflict(`The deal is ${r.state}`);
     if (!r.buyer_paid_at) throw ProblemException.conflict('The buyer has not recorded a payment yet');
+    // Phase 4: a buyer settling more than the weekly limit is held out of the board until an admin looks (manipulation guard).
+    const recent = await this.db.one<{ n: string }>(
+      `select count(*)::text as n from deals where buyer_id = $1 and state = 'settled' and settled_at > now() - interval '7 days'`,
+      [r.buyer_id],
+    );
+    const overLimit = int(recent?.n ?? 0) >= this.config.SETTLEMENTS_PER_BUYER_PER_WEEK;
     await this.db.tx(async (q) => {
       await this.transition(q, dealId, 'settled', user.sub, 'payment confirmed by farmer', `, farmer_confirmed_at = now()`);
+      if (overLimit) {
+        await q.query(`update deals set outlier_flag = true, counts_for_price = false where id = $1`, [dealId]);
+        await q.query(`insert into deal_events (deal_id, from_state, to_state, note) values ($1, 'settled', 'settled', $2)`, [
+          dealId,
+          `held out of the board: buyer settled ${recent?.n} deals in 7 days (limit ${this.config.SETTLEMENTS_PER_BUYER_PER_WEEK}); admin review`,
+        ]);
+      }
       await q.query(`select refresh_price_snapshots(current_date, 7)`); // "updated after every sale"
     });
     void this.notify(String(r.buyer_id), 'Presyo ng Hayop: the farmer confirmed your payment. Deal settled. You can rate each other in the app.');
+    await this.hook((h) => h.afterSettled(dealId));
     return this.get(user, dealId);
   }
 
@@ -289,7 +339,21 @@ export class DealsService {
       await q.query(`update listings set status = 'active', updated_at = now() where id = $1 and status = 'matched'`, [r.listing_id]);
     });
     void this.notify(String(who === 'farmer' ? r.buyer_id : r.farmer_id), `Presyo ng Hayop: the ${who} cancelled the deal. Reason: ${reason}`);
+    await this.hook((h) => h.afterCancelled(dealId, who));
     return this.get(user, dealId);
+  }
+
+  /** The platform cancels (a booking deposit was not paid in time). The listing returns to the board. */
+  async systemCancel(dealId: string, reason: string) {
+    const r = await this.row(dealId);
+    if (!['accepted', 'hauler_assigned'].includes(String(r.state))) return;
+    await this.db.tx(async (q) => {
+      await q.query(`update deals set state = 'cancelled', cancel_reason = $2 where id = $1`, [dealId, reason]);
+      await q.query(`update deal_events set note = $2 where id = (select max(id) from deal_events where deal_id = $1)`, [dealId, `system cancelled: ${reason}`]);
+      await q.query(`update listings set status = 'active', updated_at = now() where id = $1 and status = 'matched'`, [r.listing_id]);
+    });
+    void this.notify(String(r.farmer_id), `Presyo ng Hayop: the buyer did not pay the booking deposit in time. Your listing is back on the board.`);
+    void this.notify(String(r.buyer_id), `Presyo ng Hayop: the booking deposit was not paid in time and the deal lapsed. The animals are available to other buyers again.`);
   }
 
   async openDispute(user: AccessClaims, dealId: string, input: { reason: string; details?: string | null }) {
@@ -351,7 +415,11 @@ export class DealsService {
     return Promise.all(rows.map((r) => this.dispute(r.id)));
   }
 
-  async resolveDispute(adminId: string, disputeId: string, input: { outcome: 'settled' | 'refunded' | 'dismissed'; resolution: string; delivered_weight_kg?: string | null }) {
+  async resolveDispute(
+    adminId: string,
+    disputeId: string,
+    input: { outcome: 'settled' | 'refunded' | 'dismissed'; resolution: string; delivered_weight_kg?: string | null; deposit?: 'release_to_farmer' | 'refund_to_buyer' | 'hold' | null },
+  ) {
     const ds = await this.db.one<{ deal_id: string; status: string }>(`select deal_id, status::text as status from disputes where id = $1`, [disputeId]);
     if (!ds) throw ProblemException.notFound('Dispute not found');
     if (!['open', 'under_review'].includes(ds.status)) throw ProblemException.conflict(`Dispute is already ${ds.status}`);
@@ -376,6 +444,8 @@ export class DealsService {
     for (const uid of [String(deal.farmer_id), String(deal.buyer_id)]) {
       void this.notify(uid, `Presyo ng Hayop: your dispute was resolved (${input.outcome}). ${input.resolution}`);
     }
+    const decision = input.deposit ?? (input.outcome === 'settled' ? 'release_to_farmer' : input.outcome === 'refunded' ? 'refund_to_buyer' : 'hold');
+    await this.hook((h) => h.afterDisputeResolved(ds.deal_id, decision));
     return this.dispute(disputeId);
   }
 

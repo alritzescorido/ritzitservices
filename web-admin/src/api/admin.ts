@@ -1,8 +1,12 @@
 import { api, query } from './client';
 import type {
+  AdminUserRow,
   AuditEntry,
   Deal,
   DealState,
+  Deposit,
+  DepositStatus,
+  DepositTotals,
   Dispute,
   DisputeStatus,
   Health,
@@ -11,6 +15,7 @@ import type {
   LoginStep,
   Page,
   ReferencePrice,
+  ReportSummary,
   RestrictedZone,
   Species,
   TokenPair,
@@ -76,9 +81,16 @@ export const getDeal = (dealId: string) => api<Deal>(`/deals/${dealId}`);
 export const adminReviewOutlier = (dealId: string, counts_for_price: boolean, note?: string) =>
   api<Deal>(`/admin/deals/${dealId}/outlier-review`, { method: 'POST', body: { counts_for_price, note: note || undefined } });
 export const adminListDisputes = (status?: DisputeStatus) => api<{ items: Dispute[] }>(`/admin/disputes${query({ status })}`);
-export const adminResolveDispute = (disputeId: string, input: { outcome: 'settled' | 'refunded' | 'dismissed'; resolution: string; delivered_weight_kg?: string | null }) =>
+export const adminResolveDispute = (disputeId: string, input: { outcome: 'settled' | 'refunded' | 'dismissed'; resolution: string; delivered_weight_kg?: string | null; deposit?: 'release_to_farmer' | 'refund_to_buyer' | 'hold' }) =>
   api<Dispute>(`/admin/disputes/${disputeId}/resolve`, { method: 'POST', body: input, idempotent: true });
 
 export const listLocations = (p: { parent?: string; level?: string; limit?: number }) => api<Page<Location>>(`/locations${query(p)}`, { auth: false });
 export const searchLocations = (q: string, level?: string) => api<{ items: LocationWithPath[] }>(`/locations/search${query({ q, level, limit: 10 })}`, { auth: false });
 export const listWeightClasses = (species?: Species) => api<{ items: WeightClass[] }>(`/weight-classes${query({ species })}`, { auth: false });
+
+// Phase 4 and payments
+export const adminListUsers = (p: { role?: string; verification?: string; q?: string; cursor?: string; limit?: number }) =>
+  api<Page<AdminUserRow>>(`/admin/users${query(p)}`);
+export const adminReportSummary = (p: { from?: string; to?: string; province_code?: string }) => api<ReportSummary>(`/admin/reports/summary${query(p)}`);
+export const adminReportDealsCsvPath = (p: { from?: string; to?: string; province_code?: string; state?: string }) => `/admin/reports/deals.csv${query(p)}`;
+export const adminListDeposits = (status?: DepositStatus) => api<{ items: Deposit[]; totals: DepositTotals }>(`/admin/deposits${query({ status, limit: 200 })}`);
