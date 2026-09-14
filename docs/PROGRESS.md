@@ -20,7 +20,7 @@ Next: console Disputes and Deals screens; Flutter farmer app on a machine with t
 
 Commits: `5c183da` console Deals and Disputes screens and the `/progress` skill; Phase 3 logistics (this entry).
 
-Checks: SQL tests green on PGlite, API 38 e2e tests across 6 suites green, API lint clean, contract lint 0 errors, console lint, tests and build green. CI: the API job has failed at npm ci on every run since #1; the lockfile installs cleanly on Node 24 locally and several NestJS CLI dependencies require Node ^22.22.3 or ^24.15, so CI was moved to Node 24 (fix pending run #6). Other jobs green.
+Checks: SQL tests green on PGlite, API 38 e2e tests across 6 suites green, API lint clean, contract lint 0 errors, console lint, tests and build green. CI: the API job has failed at npm ci on every run since #1; the lockfile installs cleanly on Node 24 locally and several NestJS CLI dependencies require Node ^22.22.3 or ^24.15, so CI was moved to Node 24. Run #6 for `52d2d63`: all five jobs green, the first fully green run.
 
 Phase 3 backend built: hauler profile, job board with restricted-zone and capacity filters, accept with capacity check (deal to `hauler_assigned`), pickup checklist gating the trip (deal to `in_transit`), transit pings with kinds, hand-over record (deal stays `in_transit` until the buyer confirms), withdrawal before pickup (deal back to `accepted`, job reopens). Offers and deals carry a delivery point. Console Deals detail shows the shipment. Migration `0003_phase3_logistics.sql` for existing databases. Not built in Phase 3: deposits, disbursements and payout verification (decision 3), the hauler mobile screens (Flutter machine), photo lifecycle and ping retention jobs.
 
