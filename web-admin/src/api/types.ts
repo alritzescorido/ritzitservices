@@ -126,6 +126,78 @@ export interface AuditEntry {
   created_at: string;
 }
 
+export type DealState = 'accepted' | 'hauler_assigned' | 'in_transit' | 'delivered' | 'settled' | 'cancelled' | 'disputed' | 'refunded';
+
+export interface DealEvent {
+  from_state: string | null;
+  to_state: DealState;
+  actor_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface Deal {
+  id: string;
+  listing_id: string;
+  offer_id: string;
+  farmer_id: string;
+  farmer_name: string;
+  buyer_id: string;
+  buyer_name: string;
+  species: Species;
+  weight_class?: WeightClass;
+  unit: 'per_kg_liveweight' | 'per_head';
+  state: DealState;
+  agreed_price: string;
+  agreed_heads: number;
+  agreed_weight_kg: string | null;
+  estimated_total: string | null;
+  delivered_heads: number | null;
+  delivered_weight_kg: string | null;
+  final_total: string | null;
+  delivery_note: string | null;
+  cancel_reason: string | null;
+  needs_hauler: boolean;
+  payment_method: string | null;
+  payment_reference: string | null;
+  buyer_paid_at: string | null;
+  farmer_confirmed_at: string | null;
+  outlier_flag: boolean;
+  counts_for_price: boolean;
+  location: LocationWithPath;
+  events?: DealEvent[];
+  accepted_at: string;
+  delivered_at: string | null;
+  settled_at: string | null;
+  cancelled_at: string | null;
+}
+
+export type DisputeStatus = 'open' | 'under_review' | 'resolved_settled' | 'resolved_refunded' | 'dismissed';
+
+export interface Dispute {
+  id: string;
+  deal_id: string;
+  raised_by: string;
+  raised_by_role: 'farmer' | 'buyer';
+  reason: string;
+  details: string | null;
+  status: DisputeStatus;
+  resolution: string | null;
+  resolved_by: string | null;
+  deal: Deal;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export const DEAL_STATES: DealState[] = ['accepted', 'hauler_assigned', 'in_transit', 'delivered', 'settled', 'disputed', 'refunded', 'cancelled'];
+export const DISPUTE_REASON: Record<string, string> = {
+  weight_mismatch: 'Weight mismatch',
+  health: 'Animal health',
+  non_payment: 'Payment not received',
+  no_show: 'No show',
+  other: 'Other',
+};
+
 export interface Health {
   status: 'ok' | 'degraded';
   db: string;

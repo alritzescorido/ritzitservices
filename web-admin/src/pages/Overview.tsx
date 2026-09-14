@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { adminAuditLog, adminListReferencePrices, adminRefreshSnapshots, adminVerificationQueue, health } from '../api/admin';
+import { adminAuditLog, adminListDisputes, adminListReferencePrices, adminRefreshSnapshots, adminVerificationQueue, health } from '../api/admin';
 import { day, when } from '../api/format';
 import type { AuditEntry, Health } from '../api/types';
 import { Badge, Card, ErrorNote, PageHeader } from '../ui/components';
@@ -14,6 +14,7 @@ export function Overview() {
   const [pending, setPending] = useState<number | null>(null);
   const [oldest, setOldest] = useState<string | null>(null);
   const [refCount, setRefCount] = useState<number | null>(null);
+  const [openDisputes, setOpenDisputes] = useState<number | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,17 +23,19 @@ export function Overview() {
   const load = async () => {
     setError(null);
     try {
-      const [hh, q, refs, a] = await Promise.all([
+      const [hh, q, refs, a, ds] = await Promise.all([
         health(),
         adminVerificationQueue({ limit: 100 }),
         adminListReferencePrices({}),
         adminAuditLog({ limit: 8 }),
+        adminListDisputes('open'),
       ]);
       setH(hh);
       setPending(q.items.length + (q.next_cursor ? 100 : 0));
       setOldest(q.items[0]?.oldest_pending_at ?? null);
       setRefCount(refs.items.length);
       setAudit(a.items);
+      setOpenDisputes(ds.items.length);
     } catch (e) {
       setError(e);
     }
@@ -85,6 +88,14 @@ export function Overview() {
           <div className="muted small">{oldest ? `oldest since ${when(oldest)}` : 'queue is empty'}</div>
           <Link to="/verification" className="small">
             Open the queue
+          </Link>
+        </Card>
+        <Card>
+          <div className="tile-label">Open disputes</div>
+          <div className="tile-value">{openDisputes ?? '…'}</div>
+          <div className="muted small">deals frozen until an admin decides</div>
+          <Link to="/disputes" className="small">
+            Resolve
           </Link>
         </Card>
         <Card>

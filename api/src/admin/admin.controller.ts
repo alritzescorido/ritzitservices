@@ -37,6 +37,17 @@ const Resolve = z.object({
   delivered_weight_kg: z.string().regex(/^[0-9]+(\.[0-9]{1,2})?$/).nullable().optional(),
 });
 const OutlierReview = z.object({ counts_for_price: z.boolean(), note: z.string().max(500).nullable().optional() });
+const DealsQuery = z.object({
+  state: z.enum(['accepted', 'hauler_assigned', 'in_transit', 'delivered', 'settled', 'cancelled', 'disputed', 'refunded']).optional(),
+  species: SpeciesZ.optional(),
+  province_code: Psgc.optional(),
+  outliers_only: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .optional(),
+  cursor: z.string().optional(),
+  limit: Limit,
+});
 
 @Roles('admin')
 @Controller('admin')
@@ -61,6 +72,11 @@ export class AdminController {
       body: await this.deals.resolveDispute(admin.sub, disputeId, input),
     }));
     res.status(out.status).json(out.body);
+  }
+
+  @Get('deals')
+  listDeals(@Query() query: unknown) {
+    return this.deals.adminList(parseOr(DealsQuery, query, 'query'));
   }
 
   @Post('deals/:deal_id/outlier-review')

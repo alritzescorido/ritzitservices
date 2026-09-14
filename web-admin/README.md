@@ -27,12 +27,14 @@ Sign in at http://localhost:5173 with that email and password. The first sign-in
 | `/sign-in` | Admin console sign-in | Email and password, then the 6-digit authenticator code. Enrolment on first use, lockout after five failures |
 | `/` | Overview | API health, last snapshot, verification backlog, reference prices in force, recent admin actions. Button to recompute snapshots now |
 | `/verification` | Verification queue | Oldest first, filter by role and province. Detail with documents (view, accept, reject with note), farms, a checklist, and verify or reject with a note the user reads |
+| `/deals` | Deal status | Every deal with filters by state, species, province and flagged outliers. Detail with agreed versus delivered figures, payment record, timeline; let a flagged settlement count or keep it out |
+| `/disputes` | Disputes | Open, under review or all. Both sides' figures side by side, the deal timeline, and resolution as settled (optionally at a corrected weight), refunded or dismissed with a note both parties read |
 | `/reference-prices` | Reference prices | Current or full history per province and species. Set a price (species-wide or per class, large changes flagged). Import the PSA CSV, all or nothing |
 | `/restricted-zones` | Restricted zones editor | Active on a date, or everything. Create with a municipality search; set an end date |
 | `/audit-log` | Audit log | Newest first, filter by action and target, before and after JSON |
 | `/account` | Account | Change password (ends other sessions), sign out |
 
-Not built: the Disputes screen (Phase 2, no deals yet), Reports (Phase 4), Users list.
+Not built: Reports (Phase 4), Users list.
 
 ## Build and deploy
 

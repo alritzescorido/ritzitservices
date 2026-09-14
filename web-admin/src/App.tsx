@@ -2,6 +2,8 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import { Account } from './pages/Account';
 import { AuditLog } from './pages/AuditLog';
+import { Deals } from './pages/Deals';
+import { Disputes } from './pages/Disputes';
 import { Overview } from './pages/Overview';
 import { ReferencePrices } from './pages/ReferencePrices';
 import { RestrictedZones } from './pages/RestrictedZones';
@@ -24,6 +26,8 @@ export default function App() {
         <Route element={<Shell />}>
           <Route index element={<Overview />} />
           <Route path="verification" element={<Verification />} />
+          <Route path="deals" element={<Deals />} />
+          <Route path="disputes" element={<Disputes />} />
           <Route path="reference-prices" element={<ReferencePrices />} />
           <Route path="restricted-zones" element={<RestrictedZones />} />
           <Route path="audit-log" element={<AuditLog />} />

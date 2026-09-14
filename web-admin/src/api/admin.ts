@@ -1,6 +1,10 @@
 import { api, query } from './client';
 import type {
   AuditEntry,
+  Deal,
+  DealState,
+  Dispute,
+  DisputeStatus,
   Health,
   Location,
   LocationWithPath,
@@ -65,6 +69,15 @@ export const adminEndRestrictedZone = (zoneId: string, ends_on: string) =>
 export const adminRefreshSnapshots = (date?: string) => api<{ rows: number }>('/admin/price-snapshots/refresh', { method: 'POST', body: { date, window_days: 7 } });
 export const adminAuditLog = (p: { admin_id?: string; action?: string; target_id?: string; cursor?: string; limit?: number }) =>
   api<Page<AuditEntry>>(`/admin/audit-log${query(p)}`);
+
+export const adminListDeals = (p: { state?: DealState; species?: Species; province_code?: string; outliers_only?: boolean; cursor?: string; limit?: number }) =>
+  api<Page<Deal>>(`/admin/deals${query(p)}`);
+export const getDeal = (dealId: string) => api<Deal>(`/deals/${dealId}`);
+export const adminReviewOutlier = (dealId: string, counts_for_price: boolean, note?: string) =>
+  api<Deal>(`/admin/deals/${dealId}/outlier-review`, { method: 'POST', body: { counts_for_price, note: note || undefined } });
+export const adminListDisputes = (status?: DisputeStatus) => api<{ items: Dispute[] }>(`/admin/disputes${query({ status })}`);
+export const adminResolveDispute = (disputeId: string, input: { outcome: 'settled' | 'refunded' | 'dismissed'; resolution: string; delivered_weight_kg?: string | null }) =>
+  api<Dispute>(`/admin/disputes/${disputeId}/resolve`, { method: 'POST', body: input, idempotent: true });
 
 export const listLocations = (p: { parent?: string; level?: string; limit?: number }) => api<Page<Location>>(`/locations${query(p)}`, { auth: false });
 export const searchLocations = (q: string, level?: string) => api<{ items: LocationWithPath[] }>(`/locations/search${query({ q, level, limit: 10 })}`, { auth: false });

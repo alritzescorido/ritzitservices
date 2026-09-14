@@ -252,6 +252,12 @@ describe('Marketplace: listings, offers, deals, disputes (e2e)', () => {
     expect(reopened.body.status).toBe('active');
     await request(http).post(`/v1/deals/${deal.body.id}/cancel`).set(auth(buyer)).set(key()).send({ reason: 'twice' }).expect(409);
 
+    const all = await request(http).get('/v1/admin/deals').set(auth(admin)).expect(200);
+    expect(all.body.items.length).toBeGreaterThanOrEqual(3);
+    const settledOnly = await request(http).get('/v1/admin/deals?state=settled&species=hog').set(auth(admin)).expect(200);
+    expect(settledOnly.body.items.map((d: { id: string }) => d.id)).toEqual([dealId]);
+    await request(http).get('/v1/admin/deals').set(auth(buyer)).expect(403);
+
     // Outlier review on the settled deal: keep it out, then let it count again.
     const out = await request(http).post(`/v1/admin/deals/${dealId}/outlier-review`).set(auth(admin)).send({ counts_for_price: false, note: 'checking' }).expect(200);
     expect(out.body.counts_for_price).toBe(false);

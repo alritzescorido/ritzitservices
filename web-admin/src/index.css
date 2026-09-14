@@ -369,6 +369,76 @@ tr:last-child td {
   padding: 12px 0;
 }
 
+/* deals and disputes */
+tr.clickable {
+  cursor: pointer;
+}
+tr.clickable:hover td {
+  background: var(--soft);
+}
+tr.row-selected td {
+  background: var(--soft);
+}
+.tiles-3 {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.fact {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.facts th {
+  width: 110px;
+  background: none;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 1px dashed var(--line);
+}
+.facts td {
+  border-bottom: 1px dashed var(--line);
+  font-size: 14px;
+}
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--line);
+}
+.timeline li {
+  position: relative;
+  padding: 0 0 10px 12px;
+}
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.choice {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.choice:has(input:checked) {
+  border-color: var(--ink);
+  background: var(--soft);
+}
+.segmented {
+  display: flex;
+  gap: 4px;
+}
+
 /* forms */
 .field {
   display: flex;
