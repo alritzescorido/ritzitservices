@@ -73,7 +73,7 @@ Staff sign in with work email, password and a 6-digit authenticator code (`/admi
 npm run admin:create -- --phone +639170000001 --email a.reyes@example.ph --name "A. Reyes" --password '<at least 12 characters>'
 ```
 
-The authenticator secret is issued on the first sign-in and confirmed by the first valid code. Five failed attempts lock the account for 15 minutes. This implements decision 5 as assumed in the wireframes; switch to phone OTP on a whitelist if staff prefer.
+The authenticator secret is issued on the first sign-in and confirmed by the first valid code. Five failed attempts lock the account for 15 minutes. No authenticator app at hand? `npm run admin:totp -- --secret <the secret shown>` prints the current code. This implements decision 5 as assumed in the wireframes; switch to phone OTP on a whitelist if staff prefer.
 
 ## Scheduled jobs
 
