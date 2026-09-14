@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { CONFIG, type AppConfig } from '../config.js';
 import { DbService } from '../db/db.service.js';
+import { MarketService } from '../market/market.service.js';
 
 // The two housekeeping jobs the API needs before Phase 2 adds on-settle
 // refreshes: the 5:00 AM Manila snapshot that the board promises ("Updated
@@ -19,6 +20,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(CONFIG) private readonly config: AppConfig,
     @Inject(DbService) private readonly db: DbService,
+    @Inject(MarketService) private readonly market: MarketService,
   ) {}
 
   onModuleInit() {
@@ -61,14 +63,15 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     return { yesterday: Number(a?.n ?? 0), today: Number(b?.n ?? 0) };
   }
 
-  /** Idempotency keys after 48 h, OTP challenges after 24 h, dead refresh tokens after 7 days. */
+  /** Idempotency keys after 48 h, OTP challenges after 24 h, dead refresh tokens after 7 days; pending offers past expiry. */
   async purgeExpired() {
+    const offers = await this.market.expireOffers();
     const keys = await this.db.query(`delete from idempotency_keys where created_at < now() - interval '48 hours'`);
     const otps = await this.db.query(`delete from auth_otp_challenges where created_at < now() - interval '24 hours'`);
     const tokens = await this.db.query(
       `delete from refresh_tokens where (expires_at < now() - interval '7 days') or (revoked_at is not null and revoked_at < now() - interval '7 days')`,
     );
-    return { idempotency_keys: keys.rowCount, otp_challenges: otps.rowCount, refresh_tokens: tokens.rowCount };
+    return { idempotency_keys: keys.rowCount, otp_challenges: otps.rowCount, refresh_tokens: tokens.rowCount, offers_expired: offers };
   }
 
   async runJob(name: string, fn: () => Promise<unknown>) {

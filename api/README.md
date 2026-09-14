@@ -39,6 +39,7 @@ Three e2e suites, each on its own in-memory database:
 - `farms.e2e-spec.ts`: farms and lots with Idempotency-Key replay and mismatch, If-Match (428, 409 with the server copy), weight class derivation, vaccinations, signed photo and document uploads with magic-byte checks, document registration, the offline sync batch with temporary ids and replay.
 - `admin.e2e-spec.ts`: role guard, verification queue and case, document review and signed file view, verify and reject with the note shown to the user, reference prices with large-change flag and all-or-nothing CSV import, restricted zones, snapshot refresh, audit log.
 - `admin-auth.e2e-spec.ts`: console sign-in with authenticator enrolment, no email enumeration, lockout after five failures, password change ending other sessions, step tokens rejected as sessions; scheduler jobs run and are recorded.
+- `market.e2e-spec.ts`: verified-only listing and offering, board comparison and totals, offer replacement, counter chain and who may accept, deal creation with rivals rejected, deliver with weighed total, pay and confirm to settled with the on-settle snapshot, ratings, dispute to refund with audit, cancel reopening the listing, outlier review, offer expiry.
 
 ## Layout
 
@@ -52,6 +53,7 @@ Three e2e suites, each on its own in-memory database:
 | `src/locations/` | PSGC tree, search with display path |
 | `src/prices/` | Weight classes, board, running price, history. Reads `running_price()` and `price_snapshots` only, never raw deals |
 | `src/farms/` | Farms, lots, vaccinations with `If-Match` versions; the offline `/sync` batch with temporary ids |
+| `src/market/` | Phase 2: listings with the board price alongside, offers and counter chains, deals through the SQL state machine (deliver, pay, confirm, cancel, dispute, rate), admin dispute resolution and outlier review. Settlement refreshes today's snapshot |
 | `src/storage/` | Signed upload and view URLs; local provider stores files under `UPLOAD_DIR` and checks magic bytes |
 | `src/admin/` | Verification queue and decisions, document review, reference prices and CSV import, restricted zones, snapshot refresh, audit log. Every write audits itself |
 | `src/common/idempotency.ts` | `Idempotency-Key` store: same key and body replays the stored response, different body is 422 |
@@ -83,6 +85,10 @@ The authenticator secret is issued on the first sign-in and confirmed by the fir
 
 The process with `SCHEDULER_ENABLED=true` (default) recomputes price snapshots for yesterday and today at 05:00 Asia/Manila (`SNAPSHOT_HOUR_MANILA`) and purges expired idempotency keys, OTP challenges and dead refresh tokens every hour. Every run is written to `job_runs`. Run exactly one such node, or set it to `false` everywhere and call `POST /admin/price-snapshots/refresh` from the platform's cron.
 
-## Not built yet (Phase 1 backlog)
+## Migrations
 
-Push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration tool, on-settle snapshot refresh (Phase 2).
+`db/schema.sql` is the source of truth for a fresh database. Databases created earlier are brought forward by the numbered files in `db/migrations/`, applied in order with `scripts/load-sql.mjs` (local) or `psql -f` (staging, production). A proper migration runner is still on the backlog.
+
+## Not built yet
+
+Deposits through PayMongo (decision 3), hauler jobs and shipments (Phase 3), push notifications, a real SMS provider, an S3 storage provider, location centroids for the nearest-barangay lookup, a migration runner.

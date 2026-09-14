@@ -162,7 +162,7 @@ Legal and payments
 ### Recommended work
 
 Backend
-- Listings from lots with the running price snapshot at listing time; offers and counters with expiry; deal state machine as in the schema, with `accepted_unpaid` and `booked` added for the deposit.
+- Listings from lots with the running price snapshot at listing time; offers and counters with expiry; deal state machine as in the schema, with `accepted_unpaid` and `booked` added for the deposit. (Listings, offers, deals, disputes and ratings built 14 Sep 2026 without the deposit states, which wait for decision 3.)
 - Deposits: `deposits` table and API, PayMongo Checkout Session creation, webhook endpoint with signature check and idempotency, internal ledger rows, daily reconciliation job against PayMongo payouts and transfers.
 - Notifications: push and SMS on offer, counter, accept, deposit paid, delivery, settle. SMS is the fallback for every state change.
 - Delivery confirmation with head count and weighed total, tolerance rule (3% to start), settlement by both sides, payment method and reference recorded.

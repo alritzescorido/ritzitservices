@@ -276,9 +276,15 @@ create table offers (
   heads            integer not null check (heads > 0),
   expires_at       timestamptz not null,
   status           offer_status not null default 'pending',
+  needs_hauler     boolean not null default true,   -- buyer books a hauler in the app, or brings a truck
+  pickup_on        date,                            -- buyer's proposed pickup day
+  note             text,
+  responded_by     uuid references users(id),       -- who accepted, rejected or countered it
+  responded_at     timestamptz,
   created_at       timestamptz not null default now()
 );
 create index on offers (listing_id, status);
+create index on offers (status, expires_at) where status = 'pending';
 create index on offers (buyer_id);
 
 create table deals (
@@ -302,6 +308,14 @@ create table deals (
   outlier_flag       boolean not null default false,  -- >40% from province median
   outlier_reviewed_by uuid references users(id),
   counts_for_price   boolean not null default true,   -- false once refunded or rejected as outlier
+  -- Off-platform payment for the pilot (decision 3): the buyer records how they paid,
+  -- the farmer confirms receipt, and only then does the deal settle.
+  payment_method     text,                          -- 'gcash' | 'bank' | 'cash'
+  payment_reference  text,
+  buyer_paid_at      timestamptz,
+  farmer_confirmed_at timestamptz,
+  delivery_note      text,
+  cancel_reason      text,
   accepted_at        timestamptz not null default now(),
   delivered_at       timestamptz,
   settled_at         timestamptz,
@@ -625,7 +639,7 @@ returns boolean language sql immutable as $$
     ('hauler_assigned','in_transit'), ('hauler_assigned','cancelled'),
     ('in_transit','delivered'),
     ('delivered','settled'), ('delivered','disputed'),
-    ('disputed','settled'), ('disputed','refunded')
+    ('disputed','settled'), ('disputed','refunded'), ('disputed','delivered')   -- dismissed dispute resumes settlement
   );
 $$;
 

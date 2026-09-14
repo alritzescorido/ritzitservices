@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { CurrentUser, Roles, type AccessClaims } from '../auth/auth.guard.js';
 import { IdempotencyService, requireIdempotencyKey } from '../common/idempotency.js';
 import { parseOr } from '../common/problem.js';
+import { DealsService } from '../market/deals.service.js';
 import { AdminService } from './admin.service.js';
 
 const Uuid = z.string().uuid();
@@ -29,14 +30,45 @@ const ZoneInput = z.object({ location_code: Psgc, species: SpeciesZ, reason: z.s
 const ZoneEnd = z.object({ ends_on: DateZ });
 const Refresh = z.object({ date: DateZ.optional(), window_days: z.number().int().min(1).max(60).default(7) }).default({ window_days: 7 });
 const AuditQuery = z.object({ admin_id: Uuid.optional(), action: z.string().max(60).optional(), target_id: z.string().max(200).optional(), cursor: z.string().regex(/^\d+$/).optional(), limit: Limit });
+const DisputeStatus = z.enum(['open', 'under_review', 'resolved_settled', 'resolved_refunded', 'dismissed']);
+const Resolve = z.object({
+  outcome: z.enum(['settled', 'refunded', 'dismissed']),
+  resolution: z.string().trim().min(3).max(1000),
+  delivered_weight_kg: z.string().regex(/^[0-9]+(\.[0-9]{1,2})?$/).nullable().optional(),
+});
+const OutlierReview = z.object({ counts_for_price: z.boolean(), note: z.string().max(500).nullable().optional() });
 
 @Roles('admin')
 @Controller('admin')
 export class AdminController {
   constructor(
     @Inject(AdminService) private readonly admin: AdminService,
+    @Inject(DealsService) private readonly deals: DealsService,
     @Inject(IdempotencyService) private readonly idem: IdempotencyService,
   ) {}
+
+  @Get('disputes')
+  async disputes(@Query('status') status?: string) {
+    return { items: await this.deals.listDisputes(status ? parseOr(DisputeStatus, status, 'query') : undefined) };
+  }
+
+  @Post('disputes/:dispute_id/resolve')
+  async resolveDispute(@CurrentUser() admin: AccessClaims, @Param('dispute_id') id: string, @Headers('idempotency-key') key: string | undefined, @Body() body: unknown, @Res() res: Response) {
+    const disputeId = parseOr(Uuid, id, 'params');
+    const input = parseOr(Resolve, body);
+    const out = await this.idem.run(admin.sub, requireIdempotencyKey(key), { disputeId, ...input }, async () => ({
+      status: 200,
+      body: await this.deals.resolveDispute(admin.sub, disputeId, input),
+    }));
+    res.status(out.status).json(out.body);
+  }
+
+  @Post('deals/:deal_id/outlier-review')
+  @HttpCode(200)
+  reviewOutlier(@CurrentUser() admin: AccessClaims, @Param('deal_id') id: string, @Body() body: unknown) {
+    const input = parseOr(OutlierReview, body);
+    return this.deals.reviewOutlier(admin.sub, parseOr(Uuid, id, 'params'), input.counts_for_price, input.note);
+  }
 
   @Get('verification-queue')
   queue(@Query() query: unknown) {
