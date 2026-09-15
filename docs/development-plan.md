@@ -119,7 +119,7 @@ Backend
 - Admin: verification cases, approve and reject with notes, reference price CRUD with reason and audit entries. Add admin auth to the contract (email, password, authenticator code) and implement it.
 - Nightly snapshot job writing reference-based rows so the board reads only from snapshots from day one.
 
-Mobile (Flutter, Android first)
+Mobile (Flutter, Android first; iOS added 15 Sep 2026 when the owner said iPhone matters, and verified only by a macOS CI job until a Mac and an Apple Developer account exist)
 - Screens: sign in, code, profile, farmer registration, price board, my herd, lot form, Me. Match the wireframes; reuse the palette and 44px targets. (Built 15 Sep 2026 in `mobile/`, plus Ibenta and Deals from Phases 2 and 3 since the API already had them. Toolchain installed on the development machine the same day; see `mobile/README.md`.)
 - Offline store for board and herd, sync queue, conflict message when If-Match fails. (Partly built: the board is cached on the phone and shown when offline. The herd sync queue and the `POST /sync` path are not built.)
 - Filipino and English string files, language switch on the profile step. (Language switch built; strings are still inline, not in .arb files.)

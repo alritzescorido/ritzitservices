@@ -1,6 +1,6 @@
 # Presyo ng Hayop, mobile app (Flutter)
 
-The farmer app from `docs/wireframes/`, Android first, one Dart codebase. Phase 1 of `docs/development-plan.md`. Buyers and haulers use `web-app/` until their screens are added here.
+The farmer app from `docs/wireframes/`, one Dart codebase for Android and iOS. Phase 1 of `docs/development-plan.md`. Buyers and haulers use `web-app/` until their screens are added here.
 
 It talks only to the API in `api/` through `docs/api/openapi.yaml`. Every price it shows carries its source, sample size and location, because a bare number is a defect in the contract's words.
 
@@ -29,6 +29,19 @@ Installed 15 Sep 2026 on the development machine: Flutter stable at `C:\src\flut
 6. Sign in with a demo farmer, for example +639170001001, code `123456` while `OTP_DEV_CODE` is set.
 
 The debug APK allows cleartext HTTP so it can reach a local API. A release build for the field must use HTTPS and drop `usesCleartextTraffic`.
+
+## iPhone
+
+The iOS target exists and is configured: bundle id `ph.presyonghayop.presyo`, the same as Android, with the camera, photo and local-network permission strings iOS demands. Without those strings iOS kills the app the moment the camera opens, so they are not optional.
+
+**It cannot be built on this machine.** Compiling for iPhone needs Xcode, which runs only on macOS. Two consequences:
+
+- CI does the checking. The `ios` job on GitHub's macOS runner builds the app unsigned on every push, so a change that breaks iOS is caught even though nobody here has a Mac. Free for public repositories.
+- Putting it on a real iPhone needs a Mac and an Apple Developer account, 99 US dollars a year. With those, `flutter build ipa` and TestFlight are the route. A free Apple account can sideload to your own phone through Xcode, but the app expires after seven days.
+
+`NSAllowsLocalNetworking` is switched on so the app can reach the pilot API over plain HTTP on a private address. Remove that block from `ios/Runner/Info.plist` once the API is served over HTTPS.
+
+Until a Mac is available, iPhone users open `web-app/` in Safari and add it to the Home Screen.
 
 ## Screens
 

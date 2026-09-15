@@ -102,6 +102,24 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
+  ios:
+    name: iOS build (macOS runner)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile
+    # Nobody on the team has a Mac, so this job is the only proof the iOS target
+    # still compiles. It builds for a real device but does not sign: shipping to
+    # a phone needs an Apple Developer account and signing secrets.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+
   db-postgis:
     name: SQL tests and seeds (PostgreSQL 15 + PostGIS)
     runs-on: ubuntu-latest
