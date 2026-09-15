@@ -18,7 +18,8 @@ Working name. Target market: Philippines, pilot in two provinces.
 - `db/tests/` — SQL scenario tests for the deal state machine and price engine. `npm run db:test` runs them in-process (PGlite); `db/tests/run.sh` runs them against PostGIS.
 - `db/seed/` — PSGC location seed generator and reference price CSV importer: `npm run db:seed:psgc`, `npm run db:seed:check`, `npm run db:seed:reference-prices`.
 - `api/` — NestJS API. `api/README.md` explains how to run it locally with no Docker.
-- `web-admin/` — React admin console: sign-in with authenticator, overview, verification queue, reference prices and CSV import, restricted zones, audit log. `web-admin/README.md`.
+- `web-admin/` — React admin console: sign-in with authenticator, overview, verification queue, deals, disputes, deposits, reports, users, reference prices and CSV import, restricted zones, audit log. `web-admin/README.md`.
+- `web-app/` — phone-first web app for farmers, buyers and haulers: price board, herd, listings and offers, deals with the booking deposit, hauler jobs and the pickup checklist, profile and documents. Opens on a phone from a browser or the home screen while the Flutter build waits for an SDK machine. `web-app/README.md`.
 - `mobile/README.md` — hand-off for the Flutter app (needs a machine with the Flutter SDK).
 - `.github/workflows/ci.yml` — contract lint, SQL tests on PGlite and on PostGIS, API type check and e2e.
 
