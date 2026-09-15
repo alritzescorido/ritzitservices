@@ -182,14 +182,19 @@ class _BoardCard extends StatelessWidget {
           StatusPill(r.source == 'municipality' ? 'live, this town' : r.source == 'province' ? 'live, province' : 'reference', tone: r.source == 'municipality' ? 'ok' : r.source == 'province' ? 'info' : 'muted'),
         ]),
         const SizedBox(height: 4),
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(money(r.median), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
-          const SizedBox(width: 6),
-          Muted(unitLabel(r.unit)),
-          const SizedBox(width: 10),
-          if (change != null && change != 0) Text('${change > 0 ? '▲' : '▼'} ${change.abs().toStringAsFixed(1)}% 30d', style: TextStyle(fontSize: 13, color: change > 0 ? kAccent : kWarn)),
-        ]),
-        Muted('$src$band'),
+        // A price board must never show a bare dash where a number belongs.
+        if (r.median == null)
+          const Muted('Wala pang presyo para sa klaseng ito. No price set for this class yet.', size: 14)
+        else ...[
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(money(r.median), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 6),
+            Muted(unitLabel(r.unit)),
+            const SizedBox(width: 10),
+            if (change != null && change != 0) Text('${change > 0 ? '▲' : '▼'} ${change.abs().toStringAsFixed(1)}% 30d', style: TextStyle(fontSize: 13, color: change > 0 ? kAccent : kWarn)),
+          ]),
+          Muted('$src$band'),
+        ],
         if (pts.length > 1) Padding(padding: const EdgeInsets.only(top: 6), child: SizedBox(height: 28, child: CustomPaint(painter: _Spark(r.sparkline)))),
       ]),
     );

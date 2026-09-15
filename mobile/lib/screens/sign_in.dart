@@ -109,6 +109,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 controller: _phone,
                 keyboardType: TextInputType.phone,
                 autofillHints: const [AutofillHints.telephoneNumber],
+                onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(labelText: 'Mobile number', hintText: '0917 123 4567', helperText: 'We text a 6-digit code.'),
               ),
               const SizedBox(height: 14),

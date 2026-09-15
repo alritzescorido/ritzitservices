@@ -80,6 +80,8 @@ export function Loading() {
 export function Price({ row }: { row: BoardRow }) {
   const src = row.source === 'municipality' ? `${row.sample_count} sales in ${row.location_name}` : row.source === 'province' ? `${row.sample_count} sales across ${row.location_name}` : `reference price${row.reference_source ? `, ${row.reference_source}` : ''}`;
   const change = row.change_30d_pct;
+  // A price board must never show a bare dash where a number belongs.
+  if (row.median_price === null) return <p className="muted small">Wala pang presyo para sa klaseng ito. No price set for this class yet.</p>;
   return (
     <div className="price">
       <div className="price-main">

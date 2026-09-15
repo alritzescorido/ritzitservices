@@ -67,7 +67,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         children: [
           const Muted('Verification usually takes 2 working days. You can see prices right away.'),
           const SizedBox(height: 14),
-          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Full name (as on your ID)'), autofillHints: const [AutofillHints.name]),
+          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Full name (as on your ID)'), autofillHints: const [AutofillHints.name], onChanged: (_) => setState(() {})),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: _lang,
