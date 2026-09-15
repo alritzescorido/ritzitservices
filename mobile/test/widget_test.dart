@@ -22,6 +22,26 @@ void main() {
     expect(farmer.verified, isTrue);
   });
 
+  test('a bare child row is named and placed under its parent', () {
+    final town = Location.fromJson({
+      'psgc_code': '1206319000',
+      'parent_code': '1206300000',
+      'level': 'municipality',
+      'name': 'Lake Sebu',
+      'display_name': 'Lake Sebu, South Cotabato',
+      'path': [
+        {'psgc_code': '1200000000', 'level': 'region', 'name': 'SOCCSKSARGEN'},
+        {'psgc_code': '1206300000', 'level': 'province', 'name': 'South Cotabato'},
+      ],
+    });
+    // Exactly what GET /locations?parent= sends: no display_name, no path.
+    final bare = Location.fromJson({'psgc_code': '1206319014', 'parent_code': '1206319000', 'level': 'barangay', 'name': 'Poblacion'});
+    final placed = bare.under(town);
+    expect(placed.displayName, 'Poblacion, Lake Sebu, South Cotabato');
+    expect(placed.municipality?.name, 'Lake Sebu');
+    expect(placed.code, '1206319014');
+  });
+
   test('board row parses provenance', () {
     final r = BoardRow.fromJson({
       'species': 'hog',

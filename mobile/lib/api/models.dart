@@ -36,6 +36,17 @@ class Location {
   final String code, name, level, displayName;
   final List<Location> path;
   Location? get municipality => level == 'municipality' ? this : path.cast<Location?>().firstWhere((p) => p!.level == 'municipality', orElse: () => null);
+
+  /// Names and places a bare child row the way search would have. Rows from
+  /// `GET /locations?parent=` carry no display_name or path of their own.
+  Location under(Location parent) => Location.fromJson({
+        ...toJson(),
+        'display_name': '$name, ${parent.displayName}',
+        'path': [
+          for (final p in parent.path) {'psgc_code': p.code, 'name': p.name, 'level': p.level},
+          {'psgc_code': parent.code, 'name': parent.name, 'level': parent.level},
+        ],
+      });
   Map<String, dynamic> toJson() => {'psgc_code': code, 'name': name, 'level': level, 'display_name': displayName, 'path': path.map((p) => {'psgc_code': p.code, 'name': p.name, 'level': p.level}).toList()};
 }
 

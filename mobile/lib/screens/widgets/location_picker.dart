@@ -108,7 +108,10 @@ class _LocationPickerState extends State<LocationPicker> {
             decoration: InputDecoration(labelText: '${widget.label} (${brgys.length})'),
             isExpanded: true,
             items: [for (final b in brgys) DropdownMenuItem(value: b, child: Text(b.name))],
-            onChanged: widget.onChanged,
+            // GET /locations?parent= returns bare rows with no display_name or
+            // path, so build both from the town already chosen. Otherwise the
+            // picked barangay shows without its town and province.
+            onChanged: (b) => widget.onChanged(b?.under(town)),
           ),
       ]);
     }

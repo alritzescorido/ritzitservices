@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { listChildren, searchLocations } from '../api/app';
+import { placeUnder } from '../api/locations';
 import { ApiError } from '../api/client';
 import { money } from '../api/format';
 import type { BoardRow, LocationWithPath, VerificationStatus } from '../api/types';
@@ -145,7 +146,7 @@ export function LocationPicker({ level, label, hint, value, onChange }: { level?
     return (
       <Field label={label}>
         <div className="picked">
-          <span>{value.display_name}</span>
+          <span>{value.display_name || value.name}</span>
           <button type="button" className="btn btn-link" onClick={reset}>
             change
           </button>
@@ -177,7 +178,10 @@ export function LocationPicker({ level, label, hint, value, onChange }: { level?
               defaultValue=""
               onChange={(e) => {
                 const b = barangays.find((x) => x.psgc_code === e.target.value);
-                if (b) onChange(b);
+                // GET /locations?parent= returns bare rows with no display_name or
+                // path, so build both from the town we already hold. Without this
+                // the chosen barangay renders as an empty line.
+                if (b) onChange(placeUnder(b, town));
               }}
             >
               <option value="" disabled>
