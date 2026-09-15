@@ -43,3 +43,13 @@ Not built: automatic no-show forfeiture after the pickup window (admin decides t
 Gates: Phase 3 still needs 10 real hauled deals and real deposits; Phase 4 needs two municipalities with live medians for two weeks, which needs real trade.
 
 Next: legal opinion on OPS registration and a PayMongo test account so the provider can be exercised for real; Flutter apps; Phase 5 pilot hardening.
+
+## 2026-09-15
+
+Commit `b5c8b90`: phone web app in `web-app/` with every wireframed farmer, buyer and hauler screen, on the console's toolchain; CI job added. Checks: type check, lint (warnings only), 5 unit tests, build green. Runs on port 5178 bound to the Wi-Fi so a phone can open it; the demo API restarted with `PUBLIC_BASE_URL` on the PC's Wi-Fi address so uploads and the fake checkout work from the phone.
+
+Toolchain for the blueprint's Flutter app installed on the development machine without installers: Flutter stable at `C:\src\flutter`, Temurin JDK 17 at `C:\src\jdk17`, Android SDK at `C:\src\android-sdk` through the command-line tools. `flutter doctor` reports Android toolchain ready pending SDK 36 and build-tools 28.0.3, which were being installed at time of writing. No Flutter code exists yet; the web app is the stand-in a farmer can use today.
+
+Also on 2026-09-14 (late): `/modernize` skill added (`513a67b`); CI runs #6 and #7 fully green.
+
+Next: Flutter farmer app once `flutter doctor` is clean; sideload a debug APK to an Android phone; decision 3 and a PayMongo test account.
