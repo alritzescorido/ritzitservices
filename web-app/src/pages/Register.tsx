@@ -111,9 +111,7 @@ export function Register() {
             <Field label="Farm name">
               <input id="farm" value={farmName} onChange={(e) => setFarmName(e.target.value)} placeholder="e.g. Maligaya backyard" />
             </Field>
-            <Field label="Barangay" hint="Type the barangay name; pick yours from the list.">
-              <LocationPicker level="barangay" value={barangay} onChange={setBarangay} placeholder="Barangay…" />
-            </Field>
+            <LocationPicker level="barangay" label="Barangay" value={barangay} onChange={setBarangay} />
             <Field label="Type">
               <select id="ftype" value={farmType} onChange={(e) => setFarmType(e.target.value as typeof farmType)}>
                 <option value="backyard">Backyard</option>

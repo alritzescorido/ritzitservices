@@ -129,9 +129,7 @@ function OfferForm({ l, onDone }: { l: Listing; onDone: () => void }) {
         <input type="checkbox" checked={hauler} onChange={(e) => setHauler(e.target.checked)} /> Book a hauler in the app
       </label>
       {hauler ? (
-        <Field label="Deliver to" hint="Haulers see this on the job board.">
-          <LocationPicker level="municipality" value={dropoff} onChange={setDropoff} placeholder="Municipality or city…" />
-        </Field>
+        <LocationPicker level="municipality" label="Deliver to" hint="Haulers see this on the job board." value={dropoff} onChange={setDropoff} />
       ) : null}
       <Field label="Note to the farmer (optional)">
         <input id={`on-${l.id}`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />

@@ -71,7 +71,7 @@ export function Board() {
     <Screen title="Presyo ngayon" sub={board ? `${board.municipality.name}${board.province ? `, ${board.province.name}` : ''} · as of ${day(board.as_of)}` : 'Pick your municipality'}>
       {!home ? (
         <Card title="Saang bayan?">
-          <LocationPicker level="municipality" value={null} onChange={setHome} placeholder="Municipality or city…" />
+          <LocationPicker level="municipality" label="Municipality or city" value={null} onChange={setHome} />
         </Card>
       ) : (
         <div className="between small" style={{ marginBottom: 10 }}>

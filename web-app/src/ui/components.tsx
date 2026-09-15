@@ -100,7 +100,7 @@ export function Price({ row }: { row: BoardRow }) {
  * name: "Poblacion" alone cannot find the one in Lake Sebu, so the town comes
  * first and its barangays are then listed in full.
  */
-export function LocationPicker({ level, value, onChange, placeholder }: { level?: 'municipality' | 'barangay'; value: LocationWithPath | null; onChange: (l: LocationWithPath | null) => void; placeholder?: string }) {
+export function LocationPicker({ level, label, hint, value, onChange }: { level?: 'municipality' | 'barangay'; label: string; hint?: string; value: LocationWithPath | null; onChange: (l: LocationWithPath | null) => void }) {
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<LocationWithPath[]>([]);
   const [town, setTown] = useState<LocationWithPath | null>(null);
@@ -143,68 +143,78 @@ export function LocationPicker({ level, value, onChange, placeholder }: { level?
 
   if (value) {
     return (
-      <div className="picked">
-        <span>{value.display_name}</span>
-        <button type="button" className="btn btn-link" onClick={reset}>
-          change
-        </button>
-      </div>
+      <Field label={label}>
+        <div className="picked">
+          <span>{value.display_name}</span>
+          <button type="button" className="btn btn-link" onClick={reset}>
+            change
+          </button>
+        </div>
+      </Field>
     );
   }
 
-  // Step two: the town is chosen, list its barangays.
+  // Step two: the town is chosen, so its barangays can be listed in full.
   if (twoStep && town) {
     return (
       <div className="stack">
-        <div className="picked">
-          <span>{town.display_name}</span>
-          <button type="button" className="btn btn-link" onClick={() => setTown(null)}>
-            change town
-          </button>
-        </div>
-        {barangays === null ? (
-          <p className="muted small">Loading barangays…</p>
-        ) : barangays.length === 0 ? (
-          <p className="muted small">No barangays listed for this town.</p>
-        ) : (
-          <select
-            id={`brgy-${town.psgc_code}`}
-            defaultValue=""
-            onChange={(e) => {
-              const b = barangays.find((x) => x.psgc_code === e.target.value);
-              if (b) onChange(b);
-            }}
-          >
-            <option value="" disabled>
-              Choose your barangay ({barangays.length})
-            </option>
-            {barangays.map((b) => (
-              <option key={b.psgc_code} value={b.psgc_code}>
-                {b.name}
+        <Field label="Town or city">
+          <div className="picked">
+            <span>{town.display_name}</span>
+            <button type="button" className="btn btn-link" onClick={() => setTown(null)}>
+              change
+            </button>
+          </div>
+        </Field>
+        <Field label={label} hint={barangays?.length ? `${barangays.length} barangays in ${town.name}` : undefined}>
+          {barangays === null ? (
+            <p className="muted small">Loading…</p>
+          ) : barangays.length === 0 ? (
+            <p className="muted small">No barangays listed for this town.</p>
+          ) : (
+            <select
+              id={`brgy-${town.psgc_code}`}
+              defaultValue=""
+              onChange={(e) => {
+                const b = barangays.find((x) => x.psgc_code === e.target.value);
+                if (b) onChange(b);
+              }}
+            >
+              <option value="" disabled>
+                Choose yours…
               </option>
-            ))}
-          </select>
-        )}
+              {barangays.map((b) => (
+                <option key={b.psgc_code} value={b.psgc_code}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
     );
   }
 
+  // Step one. For a barangay this asks for the town, because hundreds of
+  // barangays share a name and searching one directly cannot find yours.
   return (
-    <div className="picker">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder ?? (twoStep ? 'Municipality or city…' : 'Type the name…')} autoComplete="off" />
-      {twoStep && q.trim().length < 2 ? <span className="field-hint muted small">Search your town or city first, then pick the barangay.</span> : null}
-      {hits.length > 0 ? (
-        <ul className="hits">
-          {hits.map((h) => (
-            <li key={h.psgc_code}>
-              <button type="button" onClick={() => (twoStep ? setTown(h) : onChange(h))}>
-                {h.display_name} <span className="muted small">{h.level}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    <Field label={twoStep ? 'Town or city' : label} hint={twoStep ? `Search your town first, then pick the ${label.toLowerCase()}.` : hint}>
+      <div className="picker">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={twoStep ? 'e.g. Lake Sebu' : 'Type the name…'} autoComplete="off" />
+        {hits.length > 0 ? (
+          <ul className="hits">
+            {hits.map((h) => (
+              <li key={h.psgc_code}>
+                <button type="button" onClick={() => (twoStep ? setTown(h) : onChange(h))}>
+                  {h.display_name} <span className="muted small">{h.level}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {q.trim().length >= 2 && hits.length === 0 ? <p className="muted small">No match. {twoStep ? 'Try the town or city name, not the barangay.' : ''}</p> : null}
+      </div>
+    </Field>
   );
 }
 

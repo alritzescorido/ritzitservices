@@ -117,9 +117,7 @@ function FarmForm({ onDone }: { onDone: () => void }) {
         <Field label="Name">
           <input id="nf-name" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
         </Field>
-        <Field label="Barangay">
-          <LocationPicker level="barangay" value={barangay} onChange={setBarangay} />
-        </Field>
+        <LocationPicker level="barangay" label="Barangay" value={barangay} onChange={setBarangay} />
         <Field label="Type">
           <select id="nf-type" value={type} onChange={(e) => setType(e.target.value)}>
             <option value="backyard">Backyard</option>
