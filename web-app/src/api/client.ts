@@ -1,4 +1,5 @@
 import type { Problem, TokenPair } from './types';
+import { uuid } from './uuid';
 
 // One fetch wrapper for the whole app. It attaches the bearer token,
 // refreshes it once on a 401, turns problem+json bodies into ApiError, and
@@ -103,7 +104,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
       headers['Content-Type'] = 'application/json';
       body = JSON.stringify(opts.body);
     }
-    if (opts.idempotent) headers['Idempotency-Key'] = crypto.randomUUID();
+    if (opts.idempotent) headers['Idempotency-Key'] = uuid();
     return fetch(`${API_BASE}${path}`, { method: opts.method ?? 'GET', headers, body });
   };
 

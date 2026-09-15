@@ -1,4 +1,5 @@
 import { api, query } from './client';
+import { uuid } from './uuid';
 import type {
   Board,
   Deal,
@@ -110,7 +111,7 @@ function deviceId(): string {
   try {
     let id = localStorage.getItem('lpb.device');
     if (!id) {
-      id = crypto.randomUUID();
+      id = uuid();
       localStorage.setItem('lpb.device', id);
     }
     return id;

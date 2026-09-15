@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -23,6 +24,8 @@ class ApiException implements Exception {
   @override
   String toString() => 'ApiException($status): $message';
 }
+
+final _random = Random.secure();
 
 /// One HTTP client for the app. Base URL is configurable on the sign-in
 /// screen (a phone cannot reach localhost); tokens live in secure storage;
@@ -92,7 +95,7 @@ class ApiClient {
       final headers = <String, String>{'Accept': 'application/json'};
       if (auth && _access != null) headers['Authorization'] = 'Bearer $_access';
       if (body != null) headers['Content-Type'] = 'application/json';
-      if (idempotent) headers['Idempotency-Key'] = _uuid();
+      if (idempotent) headers['Idempotency-Key'] = uuid();
       final encoded = body == null ? null : jsonEncode(body);
       switch (method) {
         case 'GET':
@@ -130,11 +133,13 @@ class ApiClient {
     return slot['storage_key'] as String;
   }
 
-  static String _uuid() {
-    final r = DateTime.now().microsecondsSinceEpoch;
-    final rnd = List.generate(16, (i) => (r >> (i * 3) ^ (i * 2654435761)) & 0xff);
-    rnd[6] = (rnd[6] & 0x0f) | 0x40;
-    rnd[8] = (rnd[8] & 0x3f) | 0x80;
+  /// A v4 UUID for Idempotency-Key. It must be random, not derived from the
+  /// clock: two writes in the same microsecond would otherwise share a key and
+  /// the second would be answered with the first one's response.
+  static String uuid() {
+    final rnd = List.generate(16, (_) => _random.nextInt(256));
+    rnd[6] = (rnd[6] & 0x0f) | 0x40; // version 4
+    rnd[8] = (rnd[8] & 0x3f) | 0x80; // variant 1
     final h = rnd.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
   }

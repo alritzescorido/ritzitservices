@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:presyo/api/client.dart';
 import 'package:presyo/api/models.dart';
 import 'package:presyo/ui.dart';
 
@@ -40,6 +41,14 @@ void main() {
     expect(placed.displayName, 'Poblacion, Lake Sebu, South Cotabato');
     expect(placed.municipality?.name, 'Lake Sebu');
     expect(placed.code, '1206319014');
+  });
+
+  test('idempotency keys are random v4 uuids, not clock-derived', () {
+    final ids = List.generate(500, (_) => ApiClient.uuid());
+    expect(ids.toSet().length, 500, reason: 'two writes in one microsecond must not share a key');
+    for (final id in ids) {
+      expect(id, matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
+    }
   });
 
   test('board row parses provenance', () {
