@@ -1,44 +1,57 @@
-# Mobile app (farmer, buyer, hauler)
+# Presyo ng Hayop, mobile app (Flutter)
 
-Flutter, one codebase, Android first. Not started: the build machine needs the Flutter SDK and Android SDK, which the current development machine does not have. This file is the hand-off so the first day on a Flutter machine is spent building, not deciding.
+The farmer app from `docs/wireframes/`, Android first, one Dart codebase. Phase 1 of `docs/development-plan.md`. Buyers and haulers use `web-app/` until their screens are added here.
 
-## What it talks to
+It talks only to the API in `api/` through `docs/api/openapi.yaml`. Every price it shows carries its source, sample size and location, because a bare number is a defect in the contract's words.
 
-`docs/api/openapi.yaml`, served by `api/`. Run the API locally with no Docker (`api/README.md`) and point the app at `http://10.0.2.2:3000/v1` from the Android emulator. Every price the API returns carries `source`, `sample_count` and `location_code`; the app must display all three (a bare number is a defect in the contract's words).
+## Build and run
 
-## Screens, in build order
+The toolchain lives outside the repo and is not on PATH. In Git Bash:
 
-Wireframes: `docs/wireframes/` (canvas link in the root README). Phase 1 is the farmer app only.
-
-1. Sign in: mobile number, one-time code, profile (name, language, role). `POST /auth/otp/request`, `POST /auth/otp/verify`, `PATCH /me`, `POST /me/roles`.
-2. Farmer registration: farm name, province, municipality, barangay from `/locations`, pin, farm type, species. `POST /farms` with an `Idempotency-Key`.
-3. Price board: `GET /prices/board?municipality_code=…`, cached offline with its ETag, revalidated with `If-None-Match`.
-4. My herd: `GET /farms`, `GET /farms/{id}/lots`, lot form `POST /farms/{id}/lots`, vaccinations. Edits queue offline and replay through `POST /sync` with `tmp:` ids; a 409 result opens a merge screen showing `problem.current`.
-5. Me: language, documents (`POST /uploads` then PUT the file, then `POST /me/documents`), pending verification state.
-
-Buyer and hauler screens follow in Phases 2 and 3 once those API tag groups exist.
-
-## Decisions already made for the app
-
-- Filipino and English string files from the first build (`preferred_lang` on the profile).
-- Offline first for the board and herd: local store, sync queue, conflict screen. Never silently overwrite.
-- Tokens: 15-minute access token, refresh token rotated on every refresh; a 401 on refresh means sign in again.
-- Photos: JPEG, resized to 1600 px on the device before upload; the API refuses files over 5 MB and checks magic bytes.
-- Every screen shows the sample size and location level next to a price.
-- Minimum tap target 44 px; test on a low-end Android (2 GB RAM, Android 10) from day one.
-
-## Suggested structure
-
-```
-mobile/
-  lib/
-    api/         generated client from docs/api/openapi.yaml (openapi_generator or hand-written dio calls)
-    auth/        otp flow, token store (flutter_secure_storage)
-    board/       price board, offline cache
-    herd/        farms, lots, vaccinations, sync queue
-    me/          profile, documents, uploads
-    l10n/        fil.arb, en.arb
-  test/          widget tests per screen against a fake API
+```bash
+export PATH=/c/src/flutter/bin:/c/src/jdk17/bin:$PATH JAVA_HOME=/c/src/jdk17 ANDROID_HOME=C:/src/android-sdk
+cd mobile
+flutter pub get
+flutter analyze && flutter test
+flutter build apk --debug          # build/app/outputs/flutter-apk/app-debug.apk
+flutter run                        # on a connected phone with USB debugging on
 ```
 
-First task on the Flutter machine: `flutter create mobile --org ph.pricoboard --platforms android`, then wire sign-in against the local API and get the OTP code from the API log.
+Installed 15 Sep 2026 on the development machine: Flutter stable at `C:\src\flutter` (git clone, not winget), Temurin JDK 17 at `C:\src\jdk17`, Android SDK at `C:\src\android-sdk` through the command-line tools with platforms 35 and 36. `flutter doctor` is green except Visual Studio, which only matters for Windows desktop builds.
+
+## Put it on a phone
+
+1. Build the debug APK with the command above.
+2. Copy `build/app/outputs/flutter-apk/app-debug.apk` to the phone, or run `adb install -r` that file with USB debugging on. `adb` is at `C:\src\android-sdk\platform-tools\adb.exe`.
+3. Android warns about installing from an unknown source. Allow it for the file manager or browser you used.
+4. Start the API so the phone can reach it (`PUBLIC_BASE_URL` must be the PC's Wi-Fi address, not localhost; see `web-app/README.md` for the full command).
+5. On the app's sign-in screen open **Server settings** and set the API address, for example `http://192.168.1.196:3000/v1`. It is remembered.
+6. Sign in with a demo farmer, for example +639170001001, code `123456` while `OTP_DEV_CODE` is set.
+
+The debug APK allows cleartext HTTP so it can reach a local API. A release build for the field must use HTTPS and drop `usesCleartextTraffic`.
+
+## Screens
+
+| Tab | Wireframe | What it does |
+|---|---|---|
+| Sign in | Signin, OtpCode | Mobile number, 6-digit code, resend timer, API address under Server settings |
+| Register | RegisterFarmer | Name, language, farm with barangay search, farm type, barangay clearance and ID by camera |
+| Presyo | Main | Running price per weight class, source and sample size on every row, 14-day sparkline, 30-day change, pull to refresh. Last board cached on the phone for the field |
+| Hayop | Herd | Farms and lots; add a farm, add a lot with heads, average weight and a camera photo |
+| Ibenta | Listing | Post a lot against the board; accept, counter or decline each offer |
+| Deals | Deal | Agreed figures, deposit line, hauler progress, confirm the payment arrived, dispute, cancel, rate, timeline |
+| Ako | Profile | Verification status, documents with review notes, payout account, language, sign out |
+
+## Layout
+
+| Path | What |
+|---|---|
+| `lib/api/client.dart` | One HTTP client: base URL from settings, tokens in secure storage, one refresh on 401, `Idempotency-Key` on writes, signed uploads, problem+json to `ApiException` |
+| `lib/api/models.dart` | Hand-written models for the operations the app uses. Money and weights stay decimal strings |
+| `lib/api/api.dart` | One function per contract operation |
+| `lib/ui.dart` | Theme and shared widgets, same palette as the console and web app |
+| `lib/screens/` | One file per screen |
+
+## Not built yet
+
+Offline queue and `POST /sync` for herd edits (the board is cached, edits are not), buyer and hauler screens, push notifications, Filipino and English string files (labels are inline today), release signing, the deposit payment link for buyers.

@@ -84,6 +84,24 @@ jobs:
       - run: npx vitest run
       - run: npm run build
 
+  mobile:
+    name: Mobile app analyze and tests (Flutter)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      # Third-party action, pinned to a major tag. It installs the Flutter SDK only;
+      # no Android SDK, so this job analyses and tests but does not build an APK.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
   db-postgis:
     name: SQL tests and seeds (PostgreSQL 15 + PostGIS)
     runs-on: ubuntu-latest
