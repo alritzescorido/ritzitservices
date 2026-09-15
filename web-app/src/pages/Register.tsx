@@ -48,7 +48,12 @@ export function Register() {
     setError(null);
     try {
       await updateMe({ full_name: name.trim(), preferred_lang: lang });
-      if (!user?.roles.includes(role)) await addRole(role);
+      if (!user?.roles.includes(role)) {
+        await addRole(role);
+        // The API reads roles from the token's claims, not the database, so the
+        // token must be rotated before the first call that needs the new role.
+        await reload();
+      }
       if (role === 'farmer' && barangay) {
         await createFarm({ name: farmName.trim() || `${name.trim()} farm`, barangay_code: barangay.psgc_code, farm_type: farmType });
         const muni = barangay.path?.find((p) => p.level === 'municipality');

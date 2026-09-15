@@ -84,6 +84,8 @@ The authenticator secret is issued on the first sign-in and confirmed by the fir
 
 `scripts/load-sql.mjs` runs a SQL file against a local PGlite directory (stop the API first; the directory is single-process). `scripts/seed-demo.mjs` fills a running dev API with three farmers with farms, lots and a clearance, a buyer and a hauler with pending documents, nine reference prices and one restricted zone, all through the public endpoints so it exercises the same paths as the apps. `scripts/seed-demo-deals.mjs` then settles one deal and leaves one dispute open; `scripts/seed-demo-haul.mjs` registers the demo hauler's truck and hauls a third deal through the checklist, pings and hand-over. All three take the admin credentials as arguments. Development only.
 
+`scripts/seed-reference-prices.mjs` opens a new province on the board by giving it one reference price per species, which is the bottom rung of the price ladder until deals settle there. Whatever you pass as `--source` is shown to farmers under the number, so name the real source or write "placeholder".
+
 ## Scheduled jobs
 
 The process with `SCHEDULER_ENABLED=true` (default) recomputes price snapshots for yesterday and today at 05:00 Asia/Manila (`SNAPSHOT_HOUR_MANILA`) and purges expired idempotency keys, OTP challenges and dead refresh tokens every hour. Every run is written to `job_runs`. Run exactly one such node, or set it to `false` everywhere and call `POST /admin/price-snapshots/refresh` from the platform's cron.

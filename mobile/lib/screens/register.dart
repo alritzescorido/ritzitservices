@@ -41,7 +41,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _busy = true);
     try {
       await Api.updateMe(fullName: _name.text.trim(), lang: _lang);
-      if (!widget.user.isFarmer) await Api.addRole('farmer');
+      if (!widget.user.isFarmer) {
+        await Api.addRole('farmer');
+        // The API reads roles from the token's claims, not the database, so the
+        // token must be rotated before POST /farms, which requires the farmer role.
+        await ApiClient.instance.refresh();
+      }
       await Api.createFarm(_farm.text.trim().isEmpty ? '${_name.text.trim()} farm' : _farm.text.trim(), b.code, _farmType);
       if (_clearance != null) await Api.registerDocument('barangay_clearance', await _uploadDoc(_clearance!));
       if (_govId != null) await Api.registerDocument('gov_id', await _uploadDoc(_govId!));

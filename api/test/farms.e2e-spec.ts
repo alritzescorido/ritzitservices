@@ -38,7 +38,7 @@ describe('Farms, lots, uploads, documents and sync (e2e)', () => {
   const signIn = async (phone: string) => {
     const req = await request(http).post('/v1/auth/otp/request').send({ phone }).expect(202);
     const ok = await request(http).post('/v1/auth/otp/verify').send({ challenge_id: req.body.challenge_id, code: '123456' }).expect(200);
-    return { token: ok.body.access_token as string, id: ok.body.user.id as string };
+    return { token: ok.body.access_token as string, refresh: ok.body.refresh_token as string, id: ok.body.user.id as string };
   };
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
   const localPath = (url: string) => url.replace('http://api.test', '');
@@ -72,6 +72,23 @@ describe('Farms, lots, uploads, documents and sync (e2e)', () => {
 
   let farmId: string;
   let lotId: string;
+
+  // Roles live in the access token's claims, not in the database lookup, so a
+  // token issued before POST /me/roles cannot create a farm. Every client must
+  // rotate the token in between; both apps got this wrong once.
+  it('a token issued before the farmer role was added is refused until it is rotated', async () => {
+    const s = await signIn('+639170000103');
+    await request(http).patch('/v1/me').set(auth(s.token)).send({ full_name: 'New Farmer' }).expect(200);
+    await request(http).post('/v1/me/roles').set(auth(s.token)).send({ role: 'farmer' }).expect(200);
+
+    const body = { name: 'Too early', barangay_code: BAKAL };
+    const stale = await request(http).post('/v1/farms').set(auth(s.token)).set('Idempotency-Key', randomUUID()).send(body).expect(403);
+    expect(stale.body.detail).toBe('Role check failed');
+
+    const rotated = await request(http).post('/v1/auth/refresh').send({ refresh_token: s.refresh }).expect(200);
+    expect(rotated.body.user.roles).toContain('farmer');
+    await request(http).post('/v1/farms').set(auth(rotated.body.access_token)).set('Idempotency-Key', randomUUID()).send(body).expect(201);
+  });
 
   it('creates a farm with an idempotency key and replays it safely', async () => {
     const body = { name: 'Maligaya farm', barangay_code: BAKAL, farm_type: 'backyard', geo: { lat: 15.58, lng: 120.92 } };
