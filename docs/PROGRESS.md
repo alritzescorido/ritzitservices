@@ -53,3 +53,20 @@ Toolchain for the blueprint's Flutter app installed on the development machine w
 Also on 2026-09-14 (late): `/modernize` skill added (`513a67b`); CI runs #6 and #7 fully green.
 
 Next: Flutter farmer app once `flutter doctor` is clean; sideload a debug APK to an Android phone; decision 3 and a PayMongo test account.
+
+## 2026-09-15 (later): the app run on a device for the first time
+
+An Android 15 emulator was set up on the development machine (Android Studio was installed but had no SDK or virtual device; the command-line SDK at `C:\src\android-sdk` supplies both). The farmer app was installed and driven end to end through adb.
+
+Four defects surfaced that no type check or unit test had caught, all fixed and committed:
+
+1. `crypto.randomUUID` is secure-context only, so on a phone loading the web app over plain HTTP every write carrying an Idempotency-Key threw. Both web apps now derive the id from `crypto.getRandomValues`. The Flutter client had the sibling fault: ids derived from the clock, so two writes in one microsecond shared a key and the second got the first one's response.
+2. Buttons whose enabled state read a `TextEditingController` never re-enabled, because the fields had no `onChanged`. Sign-in's "Send code" and registration's "Finish" were both dead on a real device.
+3. The barangay picker searched municipalities while its label said "Barangay", so typing Poblacion found nothing. It now asks for the town first, then lists that town's barangays.
+4. `GET /locations?parent=` returns bare rows with no display_name or path, so a chosen barangay rendered as an empty line. Children are now named and placed under the chosen town.
+
+Verified working on the emulator: sign in by OTP, price board for Talavera with every row carrying its source, Hayop with the farm and both lots, Ibenta with two matched listings against the board price, Deals with the settled deal and the open dispute in Filipino, the deal detail with agreed versus delivered figures and the timeline, Ako with verification, documents, payout prompt and language.
+
+Also: South Cotabato given placeholder reference prices through the new `api/scripts/seed-reference-prices.mjs`; those figures are not PSA data and say so where farmers read them.
+
+Lesson for the plan: everything above was invisible to `tsc`, `flutter analyze`, 46 API tests and a green CI. The gap was that nothing ran the app. Phase 5 should budget device time from the start, not at the end.
