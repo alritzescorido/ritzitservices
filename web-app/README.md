@@ -24,7 +24,7 @@ On the phone, same Wi-Fi, open `http://192.168.1.196:5178`. Windows Firewall mus
 | Route | Who | Wireframe | What it does |
 |---|---|---|---|
 | `/sign-in` | all | Signin, OtpCode | Mobile number, 6-digit code. Dev code is `123456` when `OTP_DEV_CODE` is set |
-| `/register` | all | RegisterFarmer, RegisterBuyer, RegisterHauler | Name, language, role; farm and barangay for farmers, truck for haulers, documents by role |
+| `/register` | all | RegisterFarmer, RegisterBuyer, RegisterHauler | Name, language, role; farm and barangay for farmers, truck for haulers, documents by role. The barangay is picked in two steps, town then barangay, because hundreds of barangays share a name |
 | `/` | all | Main | Running price per weight class for my municipality, source and sample size on every row, 14-day sparkline, 30-day change. Last board kept on the device for offline |
 | `/herd` | farmer | Herd | Farms and lots; add a farm (barangay search), add a lot with heads, average weight, photo |
 | `/sell` | farmer | Listing | Post a lot at a price against the board; see offers; accept, counter or decline |

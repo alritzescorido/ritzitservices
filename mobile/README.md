@@ -35,7 +35,7 @@ The debug APK allows cleartext HTTP so it can reach a local API. A release build
 | Tab | Wireframe | What it does |
 |---|---|---|
 | Sign in | Signin, OtpCode | Mobile number, 6-digit code, resend timer, API address under Server settings |
-| Register | RegisterFarmer | Name, language, farm with barangay search, farm type, barangay clearance and ID by camera |
+| Register | RegisterFarmer | Name, language, farm with a two-step location picker (town, then barangay), farm type, barangay clearance and ID by camera |
 | Presyo | Main | Running price per weight class, source and sample size on every row, 14-day sparkline, 30-day change, pull to refresh. Last board cached on the phone for the field |
 | Hayop | Herd | Farms and lots; add a farm, add a lot with heads, average weight and a camera photo |
 | Ibenta | Listing | Post a lot against the board; accept, counter or decline each offer |

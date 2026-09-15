@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { searchLocations } from '../api/app';
+import { listChildren, searchLocations } from '../api/app';
 import { ApiError } from '../api/client';
 import { money } from '../api/format';
 import type { BoardRow, LocationWithPath, VerificationStatus } from '../api/types';
@@ -94,40 +94,110 @@ export function Price({ row }: { row: BoardRow }) {
   );
 }
 
-/** Type-ahead over /locations/search. Returns the chosen location. */
+/**
+ * Picks a place. Municipalities are searched by name, which is distinctive.
+ * Barangays are picked in two steps, because hundreds of barangays share a
+ * name: "Poblacion" alone cannot find the one in Lake Sebu, so the town comes
+ * first and its barangays are then listed in full.
+ */
 export function LocationPicker({ level, value, onChange, placeholder }: { level?: 'municipality' | 'barangay'; value: LocationWithPath | null; onChange: (l: LocationWithPath | null) => void; placeholder?: string }) {
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<LocationWithPath[]>([]);
+  const [town, setTown] = useState<LocationWithPath | null>(null);
+  const [barangays, setBarangays] = useState<LocationWithPath[] | null>(null);
+  const twoStep = level === 'barangay';
+  const searchLevel = twoStep ? 'municipality' : level;
+
   useEffect(() => {
     if (q.trim().length < 2) {
       setHits([]);
       return;
     }
     const t = setTimeout(() => {
-      searchLocations(q.trim(), level)
+      searchLocations(q.trim(), searchLevel)
         .then((r) => setHits(r.items))
         .catch(() => setHits([]));
     }, 250);
     return () => clearTimeout(t);
-  }, [q, level]);
+  }, [q, searchLevel]);
+
+  useEffect(() => {
+    if (!town) {
+      setBarangays(null);
+      return;
+    }
+    let live = true;
+    listChildren(town.psgc_code)
+      .then((r) => live && setBarangays(r.items))
+      .catch(() => live && setBarangays([]));
+    return () => {
+      live = false;
+    };
+  }, [town]);
+
+  const reset = () => {
+    onChange(null);
+    setTown(null);
+    setQ('');
+  };
+
   if (value) {
     return (
       <div className="picked">
         <span>{value.display_name}</span>
-        <button type="button" className="btn btn-link" onClick={() => onChange(null)}>
+        <button type="button" className="btn btn-link" onClick={reset}>
           change
         </button>
       </div>
     );
   }
+
+  // Step two: the town is chosen, list its barangays.
+  if (twoStep && town) {
+    return (
+      <div className="stack">
+        <div className="picked">
+          <span>{town.display_name}</span>
+          <button type="button" className="btn btn-link" onClick={() => setTown(null)}>
+            change town
+          </button>
+        </div>
+        {barangays === null ? (
+          <p className="muted small">Loading barangays…</p>
+        ) : barangays.length === 0 ? (
+          <p className="muted small">No barangays listed for this town.</p>
+        ) : (
+          <select
+            id={`brgy-${town.psgc_code}`}
+            defaultValue=""
+            onChange={(e) => {
+              const b = barangays.find((x) => x.psgc_code === e.target.value);
+              if (b) onChange(b);
+            }}
+          >
+            <option value="" disabled>
+              Choose your barangay ({barangays.length})
+            </option>
+            {barangays.map((b) => (
+              <option key={b.psgc_code} value={b.psgc_code}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="picker">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder ?? 'Type the name…'} autoComplete="off" />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder ?? (twoStep ? 'Municipality or city…' : 'Type the name…')} autoComplete="off" />
+      {twoStep && q.trim().length < 2 ? <span className="field-hint muted small">Search your town or city first, then pick the barangay.</span> : null}
       {hits.length > 0 ? (
         <ul className="hits">
           {hits.map((h) => (
             <li key={h.psgc_code}>
-              <button type="button" onClick={() => onChange(h)}>
+              <button type="button" onClick={() => (twoStep ? setTown(h) : onChange(h))}>
                 {h.display_name} <span className="muted small">{h.level}</span>
               </button>
             </li>

@@ -48,6 +48,8 @@ export async function uploadFile(purpose: 'user_document' | 'farm_photo' | 'lot_
 
 // Locations and prices
 export const searchLocations = (q: string, level?: string) => api<{ items: LocationWithPath[] }>(`/locations/search${query({ q, level, limit: 8 })}`, { auth: false });
+/** Children of a place, e.g. the barangays of one municipality. */
+export const listChildren = (parent: string) => api<Page<LocationWithPath>>(`/locations${query({ parent, limit: 100 })}`, { auth: false });
 export const getLocation = (code: string) => api<LocationWithPath>(`/locations/${code}`, { auth: false });
 export const listWeightClasses = (species?: Species) => api<{ items: WeightClass[] }>(`/weight-classes${query({ species })}`, { auth: false });
 export const getBoard = (municipality_code: string, species?: Species) => api<Board>(`/prices/board${query({ municipality_code, species })}`, { auth: false });

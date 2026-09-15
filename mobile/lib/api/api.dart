@@ -31,6 +31,8 @@ class Api {
 
   // Locations and prices
   static Future<List<Location>> searchLocations(String q, {String? level}) async => _items(await c.call('GET', '/locations/search', query: {'q': q, 'level': level ?? '', 'limit': '8'}, auth: false)).map(Location.fromJson).toList();
+  /// Children of a place, e.g. the barangays of one municipality.
+  static Future<List<Location>> children(String parent) async => _items(await c.call('GET', '/locations', query: {'parent': parent, 'limit': '100'}, auth: false)).map(Location.fromJson).toList();
   static Future<Board> board(String municipalityCode, {String? species}) async => Board.fromJson(_m(await c.call('GET', '/prices/board', query: {'municipality_code': municipalityCode, 'species': species ?? ''}, auth: false)));
 
   // Farms and lots
