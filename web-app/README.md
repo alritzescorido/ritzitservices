@@ -36,7 +36,7 @@ On the phone, same Wi-Fi, open `http://192.168.1.196:5178`. Windows Firewall mus
 
 ## The icon
 
-iOS ignores an SVG , so the home-screen icon is a PNG.  regenerates it from a few lines of pixel maths, with no image library.
+iOS ignores an SVG `apple-touch-icon` and falls back to a screenshot of the page, so the home-screen icon is a PNG. Regenerate it with `node scripts/make-icon.mjs public/icon-512.png`. It is drawn from a few lines of pixel maths through zlib and the PNG spec, because this development machine has no image library.
 
 ## Checks
 
