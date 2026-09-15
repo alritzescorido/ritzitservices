@@ -36,7 +36,7 @@ const DEAL_SQL = `
          s.shipping_permit_no, s.vet_health_cert_no, s.head_count_at_pickup, s.agreed_fee::text as agreed_fee,
          s.scheduled_pickup_at::text as scheduled_pickup_at, s.picked_up_at::text as picked_up_at, s.delivered_at::text as shipment_delivered_at,
          lp.ll as last_ping_ll, lp.at as last_ping_at,
-         dp.id as deposit_id, dp.amount::text as deposit_amount, dp.expires_at::text as deposit_expires_at, dp.paid_at::text as deposit_paid_at, dp.closed_at::text as deposit_closed_at
+         dp.id as deposit_id, dp.amount::text as deposit_amount, dp.booking::text as deposit_booking, dp.commission::text as deposit_commission, dp.expires_at::text as deposit_expires_at, dp.paid_at::text as deposit_paid_at, dp.closed_at::text as deposit_closed_at
     from deals d join users fu on fu.id = d.farmer_id join users bu on bu.id = d.buyer_id
     left join shipments s on s.deal_id = d.id and s.status <> 'cancelled' left join users hu on hu.id = s.hauler_id
     left join lateral (select geo_lnglat(e.geo) as ll, e.created_at::text as at from shipment_events e where e.shipment_id = s.id and e.geo is not null order by e.id desc limit 1) lp on true
@@ -147,6 +147,8 @@ export class DealsService {
             id: String(r.deposit_id),
             status: String(r.deposit_status),
             amount: money(r.deposit_amount)!,
+            booking: money(r.deposit_booking ?? r.deposit_amount)!,
+            commission: money(r.deposit_commission ?? 0)!,
             expires_at: isoTime(r.deposit_expires_at)!,
             paid_at: isoTime(r.deposit_paid_at),
             closed_at: isoTime(r.deposit_closed_at),

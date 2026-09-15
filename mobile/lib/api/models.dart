@@ -165,10 +165,14 @@ class Deposit {
   Deposit.fromJson(Map<String, dynamic> j)
       : status = j['status'] as String,
         amount = j['amount'].toString(),
+        booking = (j['booking'] ?? j['amount']).toString(),
+        commission = (j['commission'] ?? '0').toString(),
         expiresAt = j['expires_at'] as String,
         paidAt = _s(j['paid_at']),
         checkoutUrl = _s(j['checkout_url']);
-  final String status, amount, expiresAt;
+  /// amount is what the buyer pays; booking is all the farmer is ever promised.
+  final String status, amount, booking, commission, expiresAt;
+  bool get hasCommission => (double.tryParse(commission) ?? 0) > 0;
   final String? paidAt, checkoutUrl;
 }
 

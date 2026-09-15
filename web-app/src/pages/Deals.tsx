@@ -130,7 +130,7 @@ function DealDetail({ id, onBack }: { id: string; onBack: () => void }) {
             {d.deposit_required ? (
               <tr>
                 <th>Deposit</th>
-                <td>{d.deposit ? `${money(d.deposit.amount)} · ${d.deposit.status}${d.deposit.paid_at ? ` ${when(d.deposit.paid_at)}` : d.deposit.status === 'pending' ? ` · pay by ${when(d.deposit.expires_at)}` : ''}` : 'being prepared'}</td>
+                <td>{d.deposit ? `${money(d.deposit.amount)}${Number(d.deposit.commission) > 0 ? ` (${money(d.deposit.booking)} deposit plus ${money(d.deposit.commission)} platform fee)` : ''} · ${d.deposit.status}${d.deposit.paid_at ? ` ${when(d.deposit.paid_at)}` : d.deposit.status === 'pending' ? ` · pay by ${when(d.deposit.expires_at)}` : ''}` : 'being prepared'}</td>
               </tr>
             ) : null}
             {d.payment_method ? (
@@ -157,7 +157,7 @@ function DealDetail({ id, onBack }: { id: string; onBack: () => void }) {
       {isBuyer && d.deposit?.status === 'pending' ? (
         <Card title="Pay the booking deposit">
           <p className="small">
-            {money(d.deposit.amount)} holds the animals for you. Pay by {when(d.deposit.expires_at)} or the deal lapses. It counts toward the price; the balance is paid at delivery.
+            {money(d.deposit.amount)} holds the animals for you{Number(d.deposit.commission) > 0 ? `, of which ${money(d.deposit.booking)} is the deposit that counts toward the price and ${money(d.deposit.commission)} is the platform fee` : ', and it counts toward the price'}. Pay by {when(d.deposit.expires_at)} or the deal lapses. The balance is paid at delivery.
           </p>
           {dep?.checkout_url ? (
             <a className="btn btn-primary btn-block" href={dep.checkout_url} target="_blank" rel="noreferrer">
@@ -173,10 +173,10 @@ function DealDetail({ id, onBack }: { id: string; onBack: () => void }) {
           </button>
         </Card>
       ) : null}
-      {isFarmer && d.deposit?.status === 'pending' ? <div className="note">Waiting for the buyer's deposit of {money(d.deposit.amount)}. Prepare the animals once it is paid.</div> : null}
+      {isFarmer && d.deposit?.status === 'pending' ? <div className="note">Waiting for the buyer's deposit of {money(d.deposit.booking)}. Prepare the animals once it is paid.</div> : null}
       {isFarmer && d.deposit?.status === 'paid' && ['accepted', 'hauler_assigned', 'in_transit'].includes(d.state) ? (
         <div className="note">
-          {money(d.deposit.amount)} reserved for you, paid by the buyer and held through PayMongo. Released to your payout account when the deal settles.
+          {money(d.deposit.booking)} reserved for you, paid by the buyer and held through PayMongo. Released to your payout account when the deal settles.
         </div>
       ) : null}
 

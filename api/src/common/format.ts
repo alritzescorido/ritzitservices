@@ -9,6 +9,15 @@ export function money(v: unknown): string | null {
   return n.toFixed(2);
 }
 
+/**
+ * Pesos for people: SMS, deal-event notes, anything a farmer reads. API response
+ * bodies keep money(), a bare decimal string, because the contract says so.
+ */
+export function peso(v: unknown): string {
+  const n = Number(money(v) ?? 0);
+  return `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export function weight(v: unknown): string | null {
   if (v === null || v === undefined || v === '') return null;
   const n = typeof v === 'number' ? v : Number(v);

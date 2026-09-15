@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { AccessClaims } from '../auth/auth.guard.js';
-import { int, isoTime, money } from '../common/format.js';
+import { int, isoTime, money, peso } from '../common/format.js';
 import { ProblemException } from '../common/problem.js';
 import { CONFIG, type AppConfig } from '../config.js';
 import { DbService, type Queryable } from '../db/db.service.js';
@@ -51,11 +51,25 @@ export class DepositsService implements OnModuleInit {
 
   // ---- amount ---------------------------------------------------------------
 
-  amountFor(deal: Record<string, unknown>): number {
+  /** What one deal is worth on the agreed terms, which both the deposit and the commission are taken from. */
+  private estimate(deal: Record<string, unknown>): number {
     const price = Number(deal.agreed_price);
-    const est = deal.unit === 'per_head' ? price * int(deal.agreed_heads) : deal.agreed_weight_kg ? price * Number(deal.agreed_weight_kg) : 0;
-    const pct = Math.round((est * this.config.DEPOSIT_PERCENT) / 100);
-    return Math.min(this.config.DEPOSIT_MAX_PESOS, Math.max(this.config.DEPOSIT_MIN_PESOS, pct));
+    return deal.unit === 'per_head' ? price * int(deal.agreed_heads) : deal.agreed_weight_kg ? price * Number(deal.agreed_weight_kg) : 0;
+  }
+
+  /**
+   * One charge, two parts. The booking is the farmer's assurance and is the only
+   * figure ever promised to them. The commission is the platform's fee, added on
+   * top so it never comes out of the farmer's share, and earned only if the deal
+   * settles. At COMMISSION_PERCENT=0 this is exactly the old behaviour.
+   */
+  amountFor(deal: Record<string, unknown>): { booking: number; commission: number; amount: number; pct: number } {
+    const est = this.estimate(deal);
+    const tenth = Math.round((est * this.config.DEPOSIT_PERCENT) / 100);
+    const booking = Math.min(this.config.DEPOSIT_MAX_PESOS, Math.max(this.config.DEPOSIT_MIN_PESOS, tenth));
+    const pct = this.config.COMMISSION_PERCENT;
+    const commission = Math.round(est * pct) / 100;
+    return { booking, commission, amount: booking + commission, pct };
   }
 
   // ---- read -------------------------------------------------------------------
@@ -70,6 +84,8 @@ export class DepositsService implements OnModuleInit {
       farmer_name: String(r.farmer_name),
       status: r.status as DepositStatus,
       amount: money(r.amount)!,
+      booking: money(r.booking ?? r.amount)!,
+      commission: money(r.commission ?? 0)!,
       fee: money(r.fee),
       net: money(r.net),
       provider: String(r.provider),
@@ -103,18 +119,19 @@ export class DepositsService implements OnModuleInit {
     try {
       const deal = await this.deals.row(dealId);
       if (await this.live(dealId)) return;
-      const amount = this.amountFor(deal);
+      const { booking, commission, amount, pct } = this.amountFor(deal);
       const { rows } = await this.db.query<{ id: string; expires_at: string }>(
-        `insert into deposits (deal_id, buyer_id, farmer_id, amount, provider, expires_at)
-         values ($1, $2, $3, $4::numeric, $5, now() + ($6 || ' minutes')::interval) returning id, expires_at::text as expires_at`,
-        [dealId, deal.buyer_id, deal.farmer_id, amount.toFixed(2), this.provider.name, String(this.config.DEPOSIT_PAY_WINDOW_MINUTES)],
+        `insert into deposits (deal_id, buyer_id, farmer_id, amount, booking, commission, commission_pct, provider, expires_at)
+         values ($1, $2, $3, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8, now() + ($9 || ' minutes')::interval) returning id, expires_at::text as expires_at`,
+        [dealId, deal.buyer_id, deal.farmer_id, amount.toFixed(2), booking.toFixed(2), commission.toFixed(2), pct.toFixed(2), this.provider.name, String(this.config.DEPOSIT_PAY_WINDOW_MINUTES)],
       );
       await this.db.query(`update deals set deposit_required = true, deposit_status = 'pending' where id = $1`, [dealId]);
-      await this.db.query(`insert into deal_events (deal_id, from_state, to_state, note) values ($1, 'accepted', 'accepted', $2)`, [dealId, `booking deposit of ${money(amount)} requested from the buyer, ${this.config.DEPOSIT_PAY_WINDOW_MINUTES} minutes to pay`]);
+      const breakdown = commission > 0 ? ` (${peso(booking)} held for the farmer plus ${peso(commission)} platform fee at ${pct}%)` : '';
+      await this.db.query(`insert into deal_events (deal_id, from_state, to_state, note) values ($1, 'accepted', 'accepted', $2)`, [dealId, `booking deposit of ${peso(amount)} requested from the buyer${breakdown}, ${this.config.DEPOSIT_PAY_WINDOW_MINUTES} minutes to pay`]);
       const url = await this.checkout(rows[0].id, amount, deal);
       const mins = this.config.DEPOSIT_PAY_WINDOW_MINUTES;
-      void this.deals.notify(String(deal.buyer_id), `Presyo ng Hayop: pay the booking deposit of ${money(amount)} within ${mins} minutes to hold the animals${url ? `: ${url}` : ' (open the app)'}. It counts toward the price.`);
-      void this.deals.notify(String(deal.farmer_id), `Presyo ng Hayop: deal agreed. Waiting for the buyer's ${money(amount)} booking deposit (${mins} minutes). You will be told when it is paid.`);
+      void this.deals.notify(String(deal.buyer_id), `Presyo ng Hayop: pay ${peso(amount)} within ${mins} minutes to hold the animals${commission > 0 ? ` (${peso(booking)} booking deposit plus ${peso(commission)} platform fee)` : ''}${url ? `: ${url}` : ' (open the app)'}. The deposit counts toward the price.`);
+      void this.deals.notify(String(deal.farmer_id), `Presyo ng Hayop: deal agreed. Waiting for the buyer's ${peso(booking)} booking deposit (${mins} minutes). You will be told when it is paid.`);
     } catch (e) {
       this.log.error(`open deposit for ${dealId}: ${(e as Error).message}`);
     }
@@ -194,10 +211,11 @@ export class DepositsService implements OnModuleInit {
         await q.query(`update deals set deposit_status = 'paid' where id = $1`, [r.deal_id]);
         await q.query(`insert into ledger_entries (deposit_id, deal_id, kind, amount, reference) values ($1, $2, 'deposit_in', $3::numeric, $4)`, [r.id, r.deal_id, amount.toFixed(2), ev.paymentId ?? null]);
         if (fee > 0) await q.query(`insert into ledger_entries (deposit_id, deal_id, kind, amount, reference) values ($1, $2, 'gateway_fee', $3::numeric, $4)`, [r.id, r.deal_id, (-fee).toFixed(2), ev.paymentId ?? null]);
-        await q.query(`insert into deal_events (deal_id, from_state, to_state, note) values ($1, 'accepted', 'accepted', $2)`, [r.deal_id, `booking deposit ${money(amount)} paid by ${ev.paymentMethod ?? 'wallet'}; deal booked, hauler job published`]);
+        await q.query(`insert into deal_events (deal_id, from_state, to_state, note) values ($1, 'accepted', 'accepted', $2)`, [r.deal_id, `booking deposit ${peso(amount)} paid by ${ev.paymentMethod ?? 'wallet'}; deal booked, hauler job published`]);
       });
-      void this.deals.notify(String(r.farmer_id), `Presyo ng Hayop: ${money(amount)} reserved for you, paid by the buyer and held through PayMongo. Prepare the animals for pickup.`);
-      void this.deals.notify(String(r.buyer_id), `Presyo ng Hayop: deposit ${money(amount)} received. The deal is booked; the balance is paid at delivery.`);
+      const booking = Number(r.booking ?? r.amount);
+      void this.deals.notify(String(r.farmer_id), `Presyo ng Hayop: ${peso(booking)} reserved for you, paid by the buyer and held through PayMongo. Prepare the animals for pickup.`);
+      void this.deals.notify(String(r.buyer_id), `Presyo ng Hayop: payment of ${peso(amount)} received. The deal is booked; the balance is paid at delivery.`);
       return String(r.id);
     }
     if (ev.type === 'transfer.succeeded' || ev.type === 'transfer.failed') {
@@ -223,6 +241,11 @@ export class DepositsService implements OnModuleInit {
     if (!r || !['paid', 'released', 'forfeited'].includes(String(r.status))) return;
     if (r.transfer_id && r.transfer_status !== 'failed') return; // already sent
     const to: DepositStatus = mode === 'release' ? 'released' : 'forfeited';
+    // Commission is earned on settlement only. When the buyer walks away the deal
+    // never happened, so the platform keeps nothing and the farmer gets the lot.
+    const booking = Number(r.booking ?? r.amount);
+    const commission = Number(r.commission ?? 0);
+    const payout = mode === 'release' ? booking : booking + commission;
     const acct = await this.db.one<Record<string, unknown>>(`select * from payout_accounts where user_id = $1`, [r.farmer_id]);
     if (!acct || !acct.verified) {
       await this.db.query(
@@ -230,13 +253,12 @@ export class DepositsService implements OnModuleInit {
         [r.id, to],
       );
       await this.db.query(`update deals set deposit_status = $2::deposit_status where id = $1`, [dealId, to]);
-      void this.deals.notify(String(r.farmer_id), `Presyo ng Hayop: ${money(r.net ?? r.amount)} from the deposit is yours. Add your GCash or bank account under Me to receive it.`);
+      void this.deals.notify(String(r.farmer_id), `Presyo ng Hayop: ${peso(payout)} from the deposit is yours. Add your GCash or bank account under Me to receive it.`);
       return;
     }
-    const net = Number(r.net ?? r.amount);
     const result = await this.provider.transfer({
       reference: `${mode}-${String(r.id).slice(0, 8)}`,
-      amountCentavos: Math.round(net * 100),
+      amountCentavos: Math.round(payout * 100),
       kind: acct.kind as 'gcash' | 'bank',
       accountNo: String(acct.account_no),
       accountName: String(acct.account_name),
@@ -249,14 +271,14 @@ export class DepositsService implements OnModuleInit {
       );
       await q.query(`update deals set deposit_status = $2::deposit_status where id = $1`, [dealId, to]);
       if (result.status !== 'failed') {
-        await q.query(`insert into ledger_entries (deposit_id, deal_id, kind, amount, reference) values ($1, $2, $3, $4::numeric, $5)`, [r.id, dealId, mode === 'release' ? 'release' : 'forfeit_payout', (-net).toFixed(2), result.transferId]);
+        await q.query(`insert into ledger_entries (deposit_id, deal_id, kind, amount, reference) values ($1, $2, $3, $4::numeric, $5)`, [r.id, dealId, mode === 'release' ? 'release' : 'forfeit_payout', (-payout).toFixed(2), result.transferId]);
         await q.query(`insert into ledger_entries (deposit_id, deal_id, kind, amount, reference) values ($1, $2, 'transfer_fee', $3::numeric, $4)`, [r.id, dealId, (-TRANSFER_FEE_PESOS).toFixed(2), result.transferId]);
       }
     });
     if (result.status === 'failed') {
-      void this.deals.notify(String(r.farmer_id), `Presyo ng Hayop: your deposit payout of ${money(net)} failed (${result.failureReason ?? 'transfer refused'}). Check your payout account.`);
+      void this.deals.notify(String(r.farmer_id), `Presyo ng Hayop: your deposit payout of ${peso(payout)} failed (${result.failureReason ?? 'transfer refused'}). Check your payout account.`);
     } else {
-      void this.deals.notify(String(r.farmer_id), `Presyo ng Hayop: ${money(net)} from the booking deposit is on its way to your ${acct.kind === 'gcash' ? 'GCash' : 'bank account'}${mode === 'forfeit' ? ' (buyer cancelled, deposit forfeited to you)' : ''}.`);
+      void this.deals.notify(String(r.farmer_id), `Presyo ng Hayop: ${peso(payout)} from the booking deposit is on its way to your ${acct.kind === 'gcash' ? 'GCash' : 'bank account'}${mode === 'forfeit' ? ' (buyer cancelled, the whole deposit is forfeited to you)' : ''}.`);
     }
   }
 
@@ -279,7 +301,7 @@ export class DepositsService implements OnModuleInit {
       await q.query(`update deals set deposit_status = 'refunded' where id = $1`, [dealId]);
       if (result.status !== 'failed') await q.query(`insert into ledger_entries (deposit_id, deal_id, kind, amount, reference) values ($1, $2, 'refund', $3::numeric, $4)`, [r.id, dealId, (-amount).toFixed(2), result.transferId]);
     });
-    void this.deals.notify(String(r.buyer_id), `Presyo ng Hayop: your booking deposit of ${money(amount)} is being refunded (${reason}). Wallets usually receive it within 24 hours.`);
+    void this.deals.notify(String(r.buyer_id), `Presyo ng Hayop: your booking deposit of ${peso(amount)} is being refunded (${reason}). Wallets usually receive it within 24 hours.`);
   }
 
   async decide(dealId: string, decision: DepositDecision) {
@@ -366,15 +388,17 @@ export class DepositsService implements OnModuleInit {
     );
     const t = await this.db.one<Record<string, string>>(
       `select coalesce(sum(net) filter (where status = 'paid'), 0)::text as held,
+              coalesce(sum(booking) filter (where status = 'paid'), 0)::text as owed_to_farmers,
               coalesce(sum(net) filter (where status = 'released'), 0)::text as released,
               coalesce(sum(net) filter (where status = 'forfeited'), 0)::text as forfeited,
               coalesce(sum(amount) filter (where status = 'refunded'), 0)::text as refunded,
+              coalesce(sum(commission) filter (where status = 'released'), 0)::text as commission_earned,
               count(*) filter (where status = 'pending')::text as pending_count
          from deposits`,
     );
     return {
       items: rows.map((r) => this.dto(r, false)),
-      totals: { held: money(t?.held)!, released: money(t?.released)!, forfeited: money(t?.forfeited)!, refunded: money(t?.refunded)!, pending_count: int(t?.pending_count ?? 0) },
+      totals: { held: money(t?.held)!, owed_to_farmers: money(t?.owed_to_farmers ?? 0)!, released: money(t?.released)!, forfeited: money(t?.forfeited)!, refunded: money(t?.refunded)!, commission_earned: money(t?.commission_earned ?? 0)!, pending_count: int(t?.pending_count ?? 0) },
     };
   }
 }

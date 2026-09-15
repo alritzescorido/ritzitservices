@@ -70,3 +70,20 @@ Verified working on the emulator: sign in by OTP, price board for Talavera with 
 Also: South Cotabato given placeholder reference prices through the new `api/scripts/seed-reference-prices.mjs`; those figures are not PSA data and say so where farmers read them.
 
 Lesson for the plan: everything above was invisible to `tsc`, `flutter analyze`, 46 API tests and a green CI. The gap was that nothing ran the app. Phase 5 should budget device time from the start, not at the end.
+
+## 2026-09-15 (later still): the platform can now earn
+
+Nothing in the system charged anyone. Every peso that entered was released in full and the gateway fee was absorbed, so each deal cost money to process. A commission mechanism now exists, committed behind `COMMISSION_PERCENT` with a default of zero, so switching it on is a business decision rather than a deployment.
+
+The rules the code enforces, and the tests that pin them:
+
+- One charge to the buyer, two parts. The booking is the farmer's assurance; the commission sits on top and can never reduce the farmer's share. Every farmer-facing figure in all three apps now shows the booking, not the charge.
+- Commission is earned on settlement only. A buyer who walks away forfeits the whole charge to the farmer and the platform takes nothing. A farmer who cancels means the buyer is refunded in full, commission included.
+- The gateway fee and the transfer fee are the platform's to absorb. Previously the farmer absorbed the gateway fee, which broke the promise made to them at booking; that is fixed, and at a zero rate the consequence is that each deal costs about ₱380 to process.
+- The console shows what the wallet holds, what is owed to farmers and what commission was actually earned, so the subsidy stays visible.
+
+Also added: `peso()` for money in SMS and event notes, because `money()` returns a bare decimal and farmer-facing messages had been reading "19044.00" with no currency at all.
+
+Written into the blueprint as a standing principle: farmers are never charged a fee, and a change that appears to require it is wrong. The revenue table there names the three sources that are not built: hauling take rate, subscriptions, and the price dataset.
+
+Still not decided: the rate. Phase 0 was meant to establish what traders currently take, and that sets the ceiling. Until then the flag stays at zero, and real money also waits on decision 3 and the payment operator question.

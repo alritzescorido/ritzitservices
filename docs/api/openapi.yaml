@@ -73,6 +73,12 @@ tags:
       forfeited to the farmer when the buyer cancels, refunded when the farmer cancels,
       and decided by the admin inside a dispute. Without a provider the deal behaves as
       before and deposit_required is false.
+
+      The one charge carries two parts. The booking is the farmer assurance and is all
+      the farmer is ever promised. The commission is the platform fee, added on top so
+      it never reduces the farmer share, and earned only when the deal settles: a buyer
+      who walks away forfeits the whole charge to the farmer, and a farmer who cancels
+      means the buyer is refunded in full. Farmers are never charged a fee.
   - name: Sync
     description: Offline batch upload for mobile.
   - name: Admin
@@ -2996,7 +3002,9 @@ components:
       properties:
         id: { type: string, format: uuid }
         status: { $ref: '#/components/schemas/DepositStatus' }
-        amount: { $ref: '#/components/schemas/Money' }
+        amount: { $ref: '#/components/schemas/Money', description: 'What the buyer pays: booking plus commission.' }
+        booking: { $ref: '#/components/schemas/Money', description: 'The farmer assurance. The only figure ever promised to the farmer.' }
+        commission: { $ref: '#/components/schemas/Money', description: 'Platform fee, added on top of the booking and earned only if the deal settles. Zero unless COMMISSION_PERCENT is set.' }
         expires_at: { type: string, format: date-time, description: 'Pay-by time while pending.' }
         paid_at: { type: [string, 'null'], format: date-time }
         closed_at: { type: [string, 'null'], format: date-time }
@@ -3023,9 +3031,11 @@ components:
       type: object
       properties:
         held: { $ref: '#/components/schemas/Money', description: 'Sum of net over paid deposits. What the wallet must hold.' }
+        owed_to_farmers: { $ref: '#/components/schemas/Money', description: 'Sum of booking over paid deposits. What is promised to farmers. The gap against held is the gateway fee the platform absorbs.' }
         released: { $ref: '#/components/schemas/Money' }
         forfeited: { $ref: '#/components/schemas/Money' }
         refunded: { $ref: '#/components/schemas/Money' }
+        commission_earned: { $ref: '#/components/schemas/Money', description: 'Commission on deposits that reached released. Revenue actually earned.' }
         pending_count: { type: integer }
     PayoutAccountInput:
       type: object
@@ -3117,6 +3127,7 @@ components:
             forfeited: { type: integer }
             refunded: { type: integer }
             held_net: { $ref: '#/components/schemas/Money' }
+            commission_earned: { $ref: '#/components/schemas/Money' }
         hauling:
           type: object
           properties:

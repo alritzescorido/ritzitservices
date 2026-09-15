@@ -34,6 +34,24 @@ Everything in this plan serves that loop. If a task does not move a farmer close
 - **Contract first.** The OpenAPI file changes before the code does. Mobile builds against the contract, not the running server.
 - **Every number shown to a user carries its sample size and location level.** No exceptions, no "clean" design without the label.
 - **Decisions have owners and due dates** (section at the end). A decision past due blocks the phase gate.
+- **Farmers are never charged a fee.** Not a listing fee, not a commission, not a deduction from what they are owed. Farmers are the scarce side of this market and the reason the product exists; every peso of revenue comes from buyers, haulers and data customers. If a future change appears to require charging farmers, the change is wrong.
+
+---
+
+## How the platform earns
+
+Revenue is only collectible where money passes through the platform, and the balance of every deal is paid directly between farmer and buyer. So the booking deposit is the single collection point, and everything else has to be invoiced.
+
+| Source | Charged to | Basis | State |
+|---|---|---|---|
+| Commission on settled deals | Buyer, added on top of the booking deposit | Percent of the deal estimate | Built 15 Sep 2026 behind `COMMISSION_PERCENT`, default 0 |
+| Hauling take rate | Hauler | Percent of the agreed hauling fee | Not built. Needs hauler payouts first, which do not exist |
+| Trader and commercial subscription | Buyers and commercial farms | Monthly | Not built |
+| Price data subscription | Feed millers, processors, insurers, lenders, government | Monthly | The figures exist in the reports API; no product around them |
+
+**The rules the commission code enforces.** One charge to the buyer carries two parts. The booking is the farmer's assurance and is the only figure ever shown to a farmer as theirs. The commission sits on top, so it can never reduce the farmer's share, and it is earned only when the deal settles: a buyer who walks away forfeits the whole charge to the farmer and the platform takes nothing, and a farmer who cancels means the buyer is refunded in full. The gateway fee and the transfer fee are the platform's to absorb, which means that at a zero rate each deal costs money to process. The console shows what is held, what is owed to farmers and what commission was actually earned, so that gap stays visible.
+
+**What is not yet decided.** The rate itself. Phase 0 was meant to establish what traders currently take, and that figure sets the ceiling. Until it is known the flag stays at zero. Turning it on for real money also waits on decision 3 and the payment operator registration question, because no deposit means no collection point.
 
 ---
 

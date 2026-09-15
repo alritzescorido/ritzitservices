@@ -181,9 +181,12 @@ describe('Payments: booking deposits, payout accounts, reports, users list (e2e)
     expect(settled.body.deposit.status).toBe('released');
     const dep = await request(http).get(`/v1/deals/${dealId}/deposit`).set(auth(farmer)).expect(200);
     expect(dep.body).toMatchObject({ status: 'released', transfer_status: 'succeeded', net: '16190.71' });
+    // The farmer receives the whole booking they were promised. The gateway fee and
+    // the transfer fee are the platform's to absorb, out of commission where there is
+    // any; with COMMISSION_PERCENT unset, as here, running the deal costs us money.
     const ledger = await db.query<{ kind: string; amount: string }>(`select kind, amount::text as amount from ledger_entries where deal_id = $1 order by id`, [dealId]);
     expect(ledger.rows.slice(2)).toEqual([
-      { kind: 'release', amount: '-16190.71' },
+      { kind: 'release', amount: '-16560.00' },
       { kind: 'transfer_fee', amount: '-10.00' },
     ]);
   });

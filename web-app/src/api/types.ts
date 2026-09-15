@@ -220,7 +220,7 @@ export interface Deal {
   dropoff: LocationWithPath | null;
   shipment: ShipmentSummary | null;
   deposit_required: boolean;
-  deposit: { id: string; status: DepositStatus; amount: string; expires_at: string; paid_at: string | null; closed_at: string | null } | null;
+  deposit: { id: string; status: DepositStatus; amount: string; booking: string; commission: string; expires_at: string; paid_at: string | null; closed_at: string | null } | null;
   events?: DealEvent[];
   accepted_at: string;
   delivered_at: string | null;
@@ -231,7 +231,12 @@ export interface Deposit {
   id: string;
   deal_id: string;
   status: DepositStatus;
+  /** What the buyer pays: booking plus commission. */
   amount: string;
+  /** The farmer's assurance, and all the farmer is ever promised. */
+  booking: string;
+  /** Platform fee, added on top and earned only on settlement. */
+  commission: string;
   checkout_url: string | null;
   expires_at: string;
   paid_at: string | null;

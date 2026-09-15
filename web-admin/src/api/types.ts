@@ -200,7 +200,12 @@ export type DepositStatus = 'pending' | 'paid' | 'lapsed' | 'released' | 'forfei
 export interface DepositSummary {
   id: string;
   status: DepositStatus;
+  /** What the buyer pays: booking plus commission. */
   amount: string;
+  /** The farmer's assurance, and all the farmer is ever promised. */
+  booking: string;
+  /** Platform fee, added on top of the booking and earned only on settlement. */
+  commission: string;
   expires_at: string;
   paid_at: string | null;
   closed_at: string | null;
@@ -223,10 +228,15 @@ export interface Deposit extends DepositSummary {
 }
 
 export interface DepositTotals {
+  /** What the gateway wallet physically holds, net of its fees. */
   held: string;
+  /** What is promised to farmers. The gap against held is the fee the platform absorbs. */
+  owed_to_farmers: string;
   released: string;
   forfeited: string;
   refunded: string;
+  /** Commission on deposits that reached released: revenue actually earned. */
+  commission_earned: string;
   pending_count: number;
 }
 
@@ -248,7 +258,7 @@ export interface ReportSummary {
   users: { by_role: { role: Role; total: number; verified: number; pending: number; active_in_period: number }[] };
   settlement: { settled: number; median_hours_accept_to_settle: number | null; p90_hours_accept_to_settle: number | null };
   disputes: { opened: number; open_now: number; rate_pct: number | null };
-  deposits: { asked: number; paid: number; lapsed: number; released: number; forfeited: number; refunded: number; held_net: string };
+  deposits: { asked: number; paid: number; lapsed: number; released: number; forfeited: number; refunded: number; held_net: string; commission_earned: string };
   hauling: { deals_needing_hauler: number; hauled_in_app: number; checklist_complete_pct: number | null };
   thin_municipalities: { location: LocationWithPath; species: Species; listings_30d: number; settled_30d: number; needed: number }[];
 }

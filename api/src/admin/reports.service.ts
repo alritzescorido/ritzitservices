@@ -88,7 +88,8 @@ export class ReportsService {
               count(*) filter (where dp.status = 'released')::text as released,
               count(*) filter (where dp.status = 'forfeited')::text as forfeited,
               count(*) filter (where dp.status = 'refunded')::text as refunded,
-              coalesce(sum(dp.net) filter (where dp.status = 'paid'), 0)::text as held_net
+              coalesce(sum(dp.net) filter (where dp.status = 'paid'), 0)::text as held_net,
+              coalesce(sum(dp.commission) filter (where dp.status = 'released'), 0)::text as commission_earned
          from deposits dp join deals d on d.id = dp.deal_id where dp.created_at >= $1::date and dp.created_at < ($2::date + 1) ${prov}`,
       params,
     );
@@ -154,6 +155,7 @@ export class ReportsService {
         forfeited: int(deposits?.forfeited ?? 0),
         refunded: int(deposits?.refunded ?? 0),
         held_net: money(deposits?.held_net ?? 0)!,
+        commission_earned: money(deposits?.commission_earned ?? 0)!,
       },
       hauling: {
         deals_needing_hauler: int(hauling?.needing ?? 0),

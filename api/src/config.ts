@@ -60,6 +60,11 @@ const schema = z.object({
   DEPOSIT_MIN_PESOS: z.coerce.number().int().min(1).default(2000),
   DEPOSIT_MAX_PESOS: z.coerce.number().int().min(1).default(20000),
   DEPOSIT_PAY_WINDOW_MINUTES: z.coerce.number().int().min(5).default(120),
+  // Platform commission as a percent of the deal estimate, added to what the buyer
+  // pays on top of the booking deposit. Zero by default: turning it on is a
+  // deliberate decision, and it is only collectible where a deposit is taken.
+  // Farmers are never charged; see docs/development-plan.md.
+  COMMISSION_PERCENT: z.coerce.number().min(0).max(20).default(0),
   // Where the buyer lands after the hosted checkout (mobile deep link or web page).
   PAYMENTS_RETURN_URL: z.string().url().default('http://localhost:3000/v1/payments/return'),
   // Settlements per buyer per rolling week before further ones are held for admin review (Phase 4).

@@ -66,7 +66,7 @@ class _DealsScreenState extends State<DealsScreen> {
                     StatusPill(_stateFil[d.state] ?? d.state, tone: _tone(d.state)),
                   ]),
                   Muted('${money(d.agreedPrice)}${unitLabel(d.unit)} · buyer ${d.buyerName} · ${day(d.acceptedAt.substring(0, 10))}'),
-                  if (d.deposit?.status == 'pending') Text('Waiting for the buyer\'s deposit of ${money(d.deposit!.amount)}', style: const TextStyle(fontSize: 13, color: kWarn)),
+                  if (d.deposit?.status == 'pending') Text('Waiting for the buyer\'s deposit of ${money(d.deposit!.booking)}', style: const TextStyle(fontSize: 13, color: kWarn)),
                   if (d.state == 'delivered' && d.buyerPaidAt != null) const Text('Buyer says they paid. Confirm when you have it.', style: TextStyle(fontSize: 13, color: kAccent)),
                 ]),
               ),
@@ -153,14 +153,14 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 _fact('Buyer', d.buyerName),
                 if (d.deliveredHeads != null) _fact('Delivered', '${d.deliveredHeads} heads${d.deliveredWeightKg != null ? ' · ${d.deliveredWeightKg} kg weighed' : ''} · ${money(d.finalTotal)}'),
                 _fact('Hauling', !d.needsHauler ? 'buyer brings own truck' : d.haulerLine ?? 'waiting for a hauler'),
-                if (d.depositRequired) _fact('Deposit', dep == null ? 'being prepared' : '${money(dep.amount)} · ${dep.status}${dep.paidAt != null ? ' ${when(dep.paidAt)}' : dep.status == 'pending' ? ' · pay by ${when(dep.expiresAt)}' : ''}'),
+                if (d.depositRequired) _fact('Deposit', dep == null ? 'being prepared' : '${money(dep.amount)}${dep.hasCommission ? ' (${money(dep.booking)} deposit plus ${money(dep.commission)} platform fee)' : ''} · ${dep.status}${dep.paidAt != null ? ' ${when(dep.paidAt)}' : dep.status == 'pending' ? ' · pay by ${when(dep.expiresAt)}' : ''}'),
                 if (d.paymentMethod != null) _fact('Balance', '${d.paymentMethod}${d.paymentReference != null ? ' ref ${d.paymentReference}' : ''} · ${when(d.buyerPaidAt)}${d.farmerConfirmedAt != null ? ' · confirmed ${when(d.farmerConfirmedAt)}' : ' · not yet confirmed'}'),
                 if (d.cancelReason != null) _fact('Cancelled', d.cancelReason!),
               ]),
             ),
-            if (isFarmer && dep?.status == 'pending') Note('Waiting for the buyer\'s deposit of ${money(dep!.amount)}. Prepare the animals once it is paid.'),
+            if (isFarmer && dep?.status == 'pending') Note('Waiting for the buyer\'s deposit of ${money(dep!.booking)}. Prepare the animals once it is paid.'),
             if (isFarmer && dep?.status == 'paid' && ['accepted', 'hauler_assigned', 'in_transit'].contains(d.state))
-              Note('${money(dep!.amount)} reserved for you, paid by the buyer and held through PayMongo. Released to your payout account when the deal settles.'),
+              Note('${money(dep!.booking)} reserved for you, paid by the buyer and held through PayMongo. Released to your payout account when the deal settles.'),
             if (isFarmer && d.state == 'delivered')
               Panel(
                 title: 'Payment',

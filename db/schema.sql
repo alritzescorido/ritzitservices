@@ -424,7 +424,10 @@ create table deposits (
   buyer_id          uuid not null references users(id),
   farmer_id         uuid not null references users(id),
   status            deposit_status not null default 'pending',
-  amount            numeric(10,2) not null check (amount > 0),   -- what the buyer pays
+  amount            numeric(10,2) not null check (amount > 0),   -- what the buyer pays: booking + commission
+  booking           numeric(10,2) not null,            -- the farmer's assurance, released to them on settlement
+  commission        numeric(10,2) not null default 0,  -- the platform's fee, kept only when the deal settles
+  commission_pct    numeric(5,2) not null default 0,   -- rate in force when the deal was struck, kept for history
   fee               numeric(10,2),                     -- gateway acceptance fee, known when paid
   net               numeric(10,2),                     -- amount - fee
   provider          text not null,                     -- 'paymongo' | 'fake'

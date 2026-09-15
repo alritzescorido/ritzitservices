@@ -126,6 +126,11 @@ export function Reports() {
               </div>
             </Card>
             <Card>
+              <div className="tile-label">Commission earned</div>
+              <div className="tile-value">{money(r.deposits.commission_earned)}</div>
+              <div className="muted small">{Number(r.deposits.commission_earned) === 0 ? 'no commission is being charged' : 'on deals that settled in this period'}</div>
+            </Card>
+            <Card>
               <div className="tile-label">Hauled in the app</div>
               <div className="tile-value">
                 {r.hauling.hauled_in_app}

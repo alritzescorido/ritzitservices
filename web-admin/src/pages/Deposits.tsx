@@ -69,6 +69,18 @@ export function Deposits() {
             <div className="muted small">net of gateway fees, for deals still open · {totals.pending_count} waiting for payment</div>
           </Card>
           <Card>
+            <div className="tile-label">Owed to farmers</div>
+            <div className="tile-value">{money(totals.owed_to_farmers)}</div>
+            <div className="muted small">
+              promised on open deals. The {money(String(Number(totals.owed_to_farmers) - Number(totals.held)))} gap against the wallet is the gateway fee the platform absorbs
+            </div>
+          </Card>
+          <Card>
+            <div className="tile-label">Commission earned</div>
+            <div className="tile-value">{money(totals.commission_earned)}</div>
+            <div className="muted small">on deals that settled. A failed deal earns nothing</div>
+          </Card>
+          <Card>
             <div className="tile-label">Released to farmers</div>
             <div className="tile-value">{money(totals.released)}</div>
             <div className="muted small">on settlement, as part payment</div>
@@ -100,9 +112,10 @@ export function Deposits() {
                 <th>Requested</th>
                 <th>Deal</th>
                 <th>Buyer → farmer</th>
-                <th className="right">Amount</th>
-                <th className="right">Fee</th>
-                <th className="right">Net</th>
+                <th className="right">Charged</th>
+                <th className="right">Booking</th>
+                <th className="right">Commission</th>
+                <th className="right">Gateway fee</th>
                 <th>Status</th>
                 <th>Payout</th>
               </tr>
@@ -120,8 +133,9 @@ export function Deposits() {
                     {d.buyer_name} → {d.farmer_name}
                   </td>
                   <td className="right">{money(d.amount)}</td>
+                  <td className="right">{money(d.booking)}</td>
+                  <td className="right">{Number(d.commission) > 0 ? money(d.commission) : '—'}</td>
                   <td className="right muted">{d.fee ? money(d.fee) : '—'}</td>
-                  <td className="right">{d.net ? money(d.net) : '—'}</td>
                   <td>
                     <Badge status={TONE[d.status]}>{d.status}</Badge>
                     <div className="muted small">{d.status === 'pending' ? `pay by ${when(d.expires_at)}` : d.paid_at ? `paid ${when(d.paid_at)}${d.payment_method ? ` by ${d.payment_method}` : ''}` : d.failure_reason ?? ''}</div>
