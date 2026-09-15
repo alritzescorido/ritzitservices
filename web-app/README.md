@@ -34,6 +34,10 @@ On the phone, same Wi-Fi, open `http://192.168.1.196:5178`. Windows Firewall mus
 | `/trips`, `/trips/:id` | hauler | HaulPickup, HaulTransit | Pickup checklist that gates "Start trip"; position sharing, checkpoint, delay, problem; hand-over |
 | `/me` | all | Profile | Verification status, documents, payout account (farmers), truck (haulers), language, sign out |
 
+## The icon
+
+iOS ignores an SVG , so the home-screen icon is a PNG.  regenerates it from a few lines of pixel maths, with no image library.
+
 ## Checks
 
 ```bash
