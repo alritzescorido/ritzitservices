@@ -44,7 +44,7 @@ Revenue is only collectible where money passes through the platform, and the bal
 
 | Source | Charged to | Basis | State |
 |---|---|---|---|
-| Commission on settled deals | Buyer, added on top of the booking deposit | Percent of the deal estimate | Built 15 Sep 2026 behind `COMMISSION_PERCENT`, default 0 |
+| Commission on settled deals | Buyer, added on top of the booking deposit | Percent of the deal estimate | Built 15 Sep 2026, default 0. Set from the console under Settings since 16 Sep; the environment only supplies the starting value |
 | Hauling take rate | Hauler | Percent of the agreed hauling fee | Not built. Needs hauler payouts first, which do not exist |
 | Trader and commercial subscription | Buyers and commercial farms | Monthly | Not built |
 | Price data subscription | Feed millers, processors, insurers, lenders, government | Monthly | The figures exist in the reports API; no product around them |

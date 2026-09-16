@@ -12,6 +12,7 @@ const NAV = [
   { to: '/reference-prices', label: 'Reference prices' },
   { to: '/restricted-zones', label: 'Restricted zones' },
   { to: '/audit-log', label: 'Audit log' },
+  { to: '/settings', label: 'Settings' },
   { to: '/account', label: 'Account' },
 ];
 

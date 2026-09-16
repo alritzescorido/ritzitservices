@@ -27,6 +27,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   XFile? _clearance;
   XFile? _govId;
   bool _busy = false;
+  // An admin can switch the ID requirement off from the console.
+  bool _docsRequired = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Api.requireDocuments().then((v) {
+      if (mounted) setState(() => _docsRequired = v);
+    });
+  }
 
   Future<void> _pick(void Function(XFile?) set) async {
     final f = await ImagePicker().pickImage(source: ImageSource.camera, maxWidth: 1600, imageQuality: 85);
@@ -97,10 +107,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             onChanged: (v) => setState(() => _farmType = v ?? 'backyard'),
           ),
           const SectionTitle('Documents'),
-          _docRow('Barangay clearance (required for verification)', _clearance, () => _pick((f) => _clearance = f)),
+          _docRow(_docsRequired ? 'Barangay clearance (required for verification)' : 'Barangay clearance (optional)', _clearance, () => _pick((f) => _clearance = f)),
           _docRow('Government ID (optional)', _govId, () => _pick((f) => _govId = f)),
           const SizedBox(height: 8),
-          const Muted('You can add documents later under Ako, but verification starts only when the clearance is in.'),
+          Muted(_docsRequired
+              ? 'You can add documents later under Ako, but verification starts only when the clearance is in.'
+              : 'Documents are optional right now. An admin can still verify you without one.'),
           const SizedBox(height: 16),
           FilledButton(onPressed: _busy || _name.text.trim().length < 2 || _barangay == null ? null : _submit, child: Text(_busy ? 'Saving…' : 'Finish')),
         ],

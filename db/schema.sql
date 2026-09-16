@@ -535,6 +535,16 @@ create table admin_credentials (
 );
 
 -- Every scheduler run, so ops can see the nightly snapshot happened.
+-- Settings an admin changes from the console. The environment supplies the
+-- value used the first time a key is asked for; after that this table is the
+-- truth, so a rate change does not need a deploy.
+create table platform_settings (
+  key         text primary key,
+  value       text not null,
+  updated_by  uuid references users(id),
+  updated_at  timestamptz not null default now()
+);
+
 create table job_runs (
   id          bigserial primary key,
   job         text not null,                         -- 'nightly_snapshots', 'purge_expired', 'deposit_sweep'

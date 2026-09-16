@@ -5,6 +5,7 @@ import { ProblemException } from '../common/problem.js';
 import { CONFIG, type AppConfig } from '../config.js';
 import { DbService, type Queryable } from '../db/db.service.js';
 import { DealsService } from '../market/deals.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { PAYMENT_PROVIDER, type PaymentProvider, type ProviderEvent } from './payment.provider.js';
 
 // Booking deposits, the pilot payment model from docs/payments-paymongo.md.
@@ -32,6 +33,7 @@ export class DepositsService implements OnModuleInit {
     @Inject(DbService) private readonly db: DbService,
     @Inject(DealsService) private readonly deals: DealsService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    @Inject(SettingsService) private readonly settings: SettingsService,
   ) {}
 
   get enabled() {
@@ -63,11 +65,12 @@ export class DepositsService implements OnModuleInit {
    * top so it never comes out of the farmer's share, and earned only if the deal
    * settles. At COMMISSION_PERCENT=0 this is exactly the old behaviour.
    */
-  amountFor(deal: Record<string, unknown>): { booking: number; commission: number; amount: number; pct: number } {
+  async amountFor(deal: Record<string, unknown>): Promise<{ booking: number; commission: number; amount: number; pct: number }> {
     const est = this.estimate(deal);
     const tenth = Math.round((est * this.config.DEPOSIT_PERCENT) / 100);
     const booking = Math.min(this.config.DEPOSIT_MAX_PESOS, Math.max(this.config.DEPOSIT_MIN_PESOS, tenth));
-    const pct = this.config.COMMISSION_PERCENT;
+    // The rate an admin set in the console, falling back to the environment until one has.
+    const pct = await this.settings.number('commission_percent');
     const commission = Math.round(est * pct) / 100;
     return { booking, commission, amount: booking + commission, pct };
   }
@@ -119,7 +122,7 @@ export class DepositsService implements OnModuleInit {
     try {
       const deal = await this.deals.row(dealId);
       if (await this.live(dealId)) return;
-      const { booking, commission, amount, pct } = this.amountFor(deal);
+      const { booking, commission, amount, pct } = await this.amountFor(deal);
       const { rows } = await this.db.query<{ id: string; expires_at: string }>(
         `insert into deposits (deal_id, buyer_id, farmer_id, amount, booking, commission, commission_pct, provider, expires_at)
          values ($1, $2, $3, $4::numeric, $5::numeric, $6::numeric, $7::numeric, $8, now() + ($9 || ' minutes')::interval) returning id, expires_at::text as expires_at`,

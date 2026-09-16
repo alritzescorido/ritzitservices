@@ -9,6 +9,7 @@ import { Overview } from './pages/Overview';
 import { ReferencePrices } from './pages/ReferencePrices';
 import { Reports } from './pages/Reports';
 import { RestrictedZones } from './pages/RestrictedZones';
+import { Settings } from './pages/Settings';
 import { SignIn } from './pages/SignIn';
 import { Users } from './pages/Users';
 import { Verification } from './pages/Verification';
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="reference-prices" element={<ReferencePrices />} />
           <Route path="restricted-zones" element={<RestrictedZones />} />
           <Route path="audit-log" element={<AuditLog />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="account" element={<Account />} />
         </Route>
       </Route>

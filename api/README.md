@@ -45,7 +45,8 @@ Three e2e suites, each on its own in-memory database:
 
 | Path | What |
 |---|---|
-| `src/config.ts` | Every environment variable, validated with zod at boot |
+| `src/config.ts` | Every environment variable, validated with zod at boot. Values an admin can change later live in `src/settings/` instead, and the environment only supplies their first value |
+| `src/settings/` | Settings an admin changes from the console without a deploy: the commission rate and whether an ID is required before verification. Each key owns its validation and its help text; every write is audited and drops the cache |
 | `src/db/` | `DbService`: one `query`/`tx`/`exec` interface over pg (production) and PGlite (local, tests) |
 | `src/common/problem.ts` | RFC 9457 problem details: `ProblemException`, global filter, `parseOr` for zod validation |
 | `src/auth/` | OTP request and verify, JWT access tokens (15 min), rotating refresh tokens, `@Public` and `@Roles` guards, SMS provider interface |

@@ -240,6 +240,18 @@ export interface DepositTotals {
   pending_count: number;
 }
 
+export interface PlatformSetting {
+  key: string;
+  value: number | boolean;
+  type: 'number' | 'boolean';
+  label: string;
+  help: string;
+  /** False while the value is still whatever the server started with. */
+  set_by_admin: boolean;
+  updated_by_name: string | null;
+  updated_at: string | null;
+}
+
 export interface AdminUserRow extends User {
   province_name: string | null;
   deals_count: number;

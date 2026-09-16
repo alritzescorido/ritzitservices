@@ -87,3 +87,15 @@ Also added: `peso()` for money in SMS and event notes, because `money()` returns
 Written into the blueprint as a standing principle: farmers are never charged a fee, and a change that appears to require it is wrong. The revenue table there names the three sources that are not built: hauling take rate, subscriptions, and the price dataset.
 
 Still not decided: the rate. Phase 0 was meant to establish what traders currently take, and that sets the ceiling. Until then the flag stays at zero, and real money also waits on decision 3 and the payment operator question.
+
+## 2026-09-16
+
+The commission rate and the ID requirement moved out of the environment and into the console, at the owner's request. A small `platform_settings` table holds them; the environment now only supplies the value used before an admin has ever set one. Every change writes an audit row, so the audit log answers who changed the rate and when.
+
+- **Settings screen** in the console, listing each setting with the label and help text the API supplies, so the wording cannot drift from the behaviour. The commission field shows what a 165,600 peso deal would be charged at the rate being typed, and says plainly that at zero each deal still costs about 380 pesos to process.
+- **Commission** is read from settings at the moment an offer is accepted. Deals already struck keep the rate they were agreed at, which is stored on the deposit.
+- **Require an ID before verification** is new. With it on, nothing changes. With it off, someone with no documents still reaches the verification queue and an admin can verify them, and both apps mark the upload as optional instead of required. The apps read it from a public endpoint before anyone signs in.
+
+A bug the tests caught: `z.coerce.boolean()` is `Boolean(v)`, so a setting stored as the text "false" read back as true and could never be switched off. Booleans are now parsed by word.
+
+Checks: 56 API e2e tests across 9 suites, contract lint clean, console and phone app lint, tests and build green, Flutter analyzer clean. Migrations 0005 and 0006 applied to the demo database.

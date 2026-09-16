@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addRole, createFarm, putHaulerProfile, registerDocument, updateMe, uploadFile } from '../api/app';
+import { addRole, createFarm, getPublicSettings, putHaulerProfile, registerDocument, updateMe, uploadFile } from '../api/app';
 import type { DocType, LocationWithPath, Role } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { ErrorNote, Field, LocationPicker, useHomeLocation } from '../ui/components';
@@ -41,6 +41,13 @@ export function Register() {
   const [files, setFiles] = useState<Partial<Record<DocType, File>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  // An admin can switch the ID requirement off from the console.
+  const [docsRequired, setDocsRequired] = useState(true);
+  useEffect(() => {
+    getPublicSettings()
+      .then((s) => setDocsRequired(s.require_documents))
+      .catch(() => undefined);
+  }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -73,7 +80,7 @@ export function Register() {
     }
   };
 
-  const missingRequired = DOCS[role].some((d) => d.required && !files[d.type]);
+  const missingRequired = docsRequired && DOCS[role].some((d) => d.required && !files[d.type]);
 
   return (
     <div className="signin">
@@ -139,11 +146,12 @@ export function Register() {
         ) : null}
         <h3>Documents</h3>
         {DOCS[role].map((d) => (
-          <Field key={d.type} label={`${d.label}${d.required ? '' : ' (optional)'}`}>
+          <Field key={d.type} label={`${d.label}${d.required && docsRequired ? '' : ' (optional)'}`}>
             <input id={`doc-${d.type}`} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" onChange={(e) => setFiles((f) => ({ ...f, [d.type]: e.target.files?.[0] }))} />
           </Field>
         ))}
         {missingRequired ? <p className="muted small">You can add the required documents later under Ako, but verification starts only when they are in.</p> : null}
+        {!docsRequired ? <p className="muted small">Documents are optional right now. An admin can still verify you without one.</p> : null}
         <button className="btn btn-primary btn-block" disabled={busy || name.trim().length < 2 || (role === 'farmer' && !barangay)}>
           {busy ? 'Saving…' : 'Finish'}
         </button>

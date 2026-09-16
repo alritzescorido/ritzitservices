@@ -29,6 +29,15 @@ class Api {
   static Future<List<UserDocument>> documents() async => _items(await c.call('GET', '/me/documents')).map(UserDocument.fromJson).toList();
   static Future<void> registerDocument(String docType, String key) => c.call('POST', '/me/documents', body: {'doc_type': docType, 'storage_key': key}, idempotent: true);
 
+  /// What the app may know before anyone signs in, such as whether an ID is required.
+  static Future<bool> requireDocuments() async {
+    try {
+      return _m(await c.call('GET', '/settings', auth: false))['require_documents'] != false;
+    } catch (_) {
+      return true; // assume required if the server cannot say
+    }
+  }
+
   // Locations and prices
   static Future<List<Location>> searchLocations(String q, {String? level}) async => _items(await c.call('GET', '/locations/search', query: {'q': q, 'level': level ?? '', 'limit': '8'}, auth: false)).map(Location.fromJson).toList();
   /// Children of a place, e.g. the barangays of one municipality.

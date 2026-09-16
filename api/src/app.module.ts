@@ -13,11 +13,12 @@ import { LogisticsModule } from './logistics/logistics.module.js';
 import { MarketModule } from './market/market.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { PricesModule } from './prices/prices.module.js';
+import { SettingsModule } from './settings/settings.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { UsersModule } from './users/users.module.js';
 
 @Module({
-  imports: [AppConfigModule, DbModule, StorageModule, AuthModule, UsersModule, LocationsModule, PricesModule, FarmsModule, MarketModule, LogisticsModule, PaymentsModule, AdminModule, JobsModule],
+  imports: [AppConfigModule, DbModule, SettingsModule, StorageModule, AuthModule, UsersModule, LocationsModule, PricesModule, FarmsModule, MarketModule, LogisticsModule, PaymentsModule, AdminModule, JobsModule],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: ProblemFilter }],
 })

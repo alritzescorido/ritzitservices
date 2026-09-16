@@ -47,6 +47,9 @@ export async function uploadFile(purpose: 'user_document' | 'farm_photo' | 'lot_
   return slot.storage_key;
 }
 
+/** What the apps may know before anyone signs in, such as whether an ID is required. */
+export const getPublicSettings = () => api<{ require_documents: boolean }>('/settings', { auth: false });
+
 // Locations and prices
 export const searchLocations = (q: string, level?: string) => api<{ items: LocationWithPath[] }>(`/locations/search${query({ q, level, limit: 8 })}`, { auth: false });
 /** Children of a place, e.g. the barangays of one municipality. */

@@ -14,6 +14,7 @@ import type {
   LocationWithPath,
   LoginStep,
   Page,
+  PlatformSetting,
   ReferencePrice,
   ReportSummary,
   RestrictedZone,
@@ -87,6 +88,9 @@ export const adminResolveDispute = (disputeId: string, input: { outcome: 'settle
 export const listLocations = (p: { parent?: string; level?: string; limit?: number }) => api<Page<Location>>(`/locations${query(p)}`, { auth: false });
 export const searchLocations = (q: string, level?: string) => api<{ items: LocationWithPath[] }>(`/locations/search${query({ q, level, limit: 10 })}`, { auth: false });
 export const listWeightClasses = (species?: Species) => api<{ items: WeightClass[] }>(`/weight-classes${query({ species })}`, { auth: false });
+
+export const adminListSettings = () => api<{ items: PlatformSetting[] }>('/admin/settings');
+export const adminSetSetting = (key: string, value: string | number | boolean) => api<{ items: PlatformSetting[] }>('/admin/settings', { method: 'PATCH', body: { key, value } });
 
 // Phase 4 and payments
 export const adminListUsers = (p: { role?: string; verification?: string; q?: string; cursor?: string; limit?: number }) =>

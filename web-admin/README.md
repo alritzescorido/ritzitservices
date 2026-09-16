@@ -35,9 +35,10 @@ Sign in at http://localhost:5173 with that email and password. The first sign-in
 | `/reference-prices` | Reference prices | Current or full history per province and species. Set a price (species-wide or per class, large changes flagged). Import the PSA CSV, all or nothing |
 | `/restricted-zones` | Restricted zones editor | Active on a date, or everything. Create with a municipality search; set an end date |
 | `/audit-log` | Audit log | Newest first, filter by action and target, before and after JSON |
+| `/settings` | (not wireframed) | Platform commission and whether an ID is required before verification. Each carries the explanation the API supplies, so the wording cannot drift from the behaviour. Every save is audited |
 | `/account` | Account | Change password (ends other sessions), sign out |
 
-Not built: Settings, photo viewing on shipments.
+Not built: photo viewing on shipments.
 
 ## Build and deploy
 
