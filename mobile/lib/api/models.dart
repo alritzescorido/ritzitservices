@@ -22,6 +22,12 @@ class User {
   final List<String> roles;
   final String? verificationNotes;
   bool get isFarmer => roles.contains('farmer');
+  bool get isBuyer => roles.contains('buyer');
+  bool get isHauler => roles.contains('hauler');
+
+  /// The roles that decide which tabs appear, in a fixed order so the tab bar
+  /// keeps its shape whatever order the API returns the roles in.
+  List<String> get tradeRoles => const ['farmer', 'buyer', 'hauler'].where(roles.contains).toList();
   bool get verified => verification == 'verified';
   bool get needsProfile => fullName.isEmpty || roles.where((r) => r != 'admin').isEmpty;
 }
@@ -134,11 +140,19 @@ class Listing {
         vsBoardPct = _d(j['vs_board_pct']),
         estimatedTotal = _s(j['estimated_total']),
         pendingOffers = _i(j['pending_offers']),
+        farmerName = (j['farmer_name'] as String?) ?? '',
+        farmerVerified = j['farmer_verified'] == true,
+        farmName = (j['farm_name'] as String?) ?? '',
+        avgWeightKg = _s(j['avg_weight_kg']),
+        lastVaccinationOn = _s(j['last_vaccination_on']),
+        location = j['location'] == null ? null : Location.fromJson(j['location'] as Map<String, dynamic>),
         createdAt = j['created_at'] as String;
-  final String id, status, species, unit, askingPrice, createdAt;
+  final String id, status, species, unit, askingPrice, createdAt, farmerName, farmName;
   final WeightClass weightClass;
   final int headsOffered, pendingOffers;
-  final String? boardPrice, estimatedTotal;
+  final bool farmerVerified;
+  final String? boardPrice, estimatedTotal, avgWeightKg, lastVaccinationOn;
+  final Location? location;
   final double? vsBoardPct;
 }
 
@@ -247,4 +261,83 @@ class PayoutAccount {
         verified = j['verified'] == true;
   final String kind, masked;
   final bool verified;
+}
+
+class HaulerProfile {
+  HaulerProfile.fromJson(Map<String, dynamic> j)
+      : haulerName = (j['hauler_name'] as String?) ?? '',
+        verified = j['verified'] == true,
+        vehiclePlate = j['vehicle_plate'] as String,
+        vehicleType = j['vehicle_type'] as String,
+        capacityHeads = _i(j['capacity_heads']),
+        ratePerHead = _s(j['rate_per_head']);
+  final String haulerName, vehiclePlate, vehicleType;
+  final bool verified;
+  final int capacityHeads;
+  final String? ratePerHead;
+}
+
+class HaulJob {
+  HaulJob.fromJson(Map<String, dynamic> j)
+      : dealId = j['deal_id'] as String,
+        species = j['species'] as String,
+        heads = _i(j['heads']),
+        estimatedWeightKg = _s(j['estimated_weight_kg']),
+        farmName = (j['farm_name'] as String?) ?? '',
+        pickup = Location.fromJson(j['pickup'] as Map<String, dynamic>),
+        dropoff = j['dropoff'] == null ? null : Location.fromJson(j['dropoff'] as Map<String, dynamic>),
+        pickupOn = _s(j['pickup_on']),
+        fitsCapacity = j['fits_capacity'] as bool?,
+        needs = ((j['needs'] as List?) ?? const []).cast<String>();
+  final String dealId, species, farmName;
+  final int heads;
+  final String? estimatedWeightKg, pickupOn;
+  final Location pickup;
+  final Location? dropoff;
+  final bool? fitsCapacity;
+  final List<String> needs;
+}
+
+class ShipmentEvent {
+  ShipmentEvent.fromJson(Map<String, dynamic> j)
+      : status = j['status'] as String,
+        kind = _s(j['kind']),
+        note = _s(j['note']),
+        createdAt = j['created_at'] as String,
+        lat = _d((j['geo'] as Map?)?['lat']),
+        lng = _d((j['geo'] as Map?)?['lng']);
+  final String status, createdAt;
+  final String? kind, note;
+  final double? lat, lng;
+}
+
+class Shipment {
+  Shipment.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String,
+        dealId = j['deal_id'] as String,
+        status = j['status'] as String,
+        dealState = (j['deal_state'] as String?) ?? '',
+        species = j['species'] as String,
+        heads = _i(j['heads']),
+        farmName = (j['farm_name'] as String?) ?? '',
+        farmerName = (j['farmer_name'] as String?) ?? '',
+        buyerName = (j['buyer_name'] as String?) ?? '',
+        pickup = Location.fromJson(j['pickup'] as Map<String, dynamic>),
+        dropoff = j['dropoff'] == null ? null : Location.fromJson(j['dropoff'] as Map<String, dynamic>),
+        agreedFee = _s(j['agreed_fee']),
+        scheduledPickupAt = _s(j['scheduled_pickup_at']),
+        pickedUpAt = _s(j['picked_up_at']),
+        deliveredAt = _s(j['delivered_at']),
+        shippingPermitNo = _s(j['shipping_permit_no']),
+        vetHealthCertNo = _s(j['vet_health_cert_no']),
+        headCountAtPickup = j['head_count_at_pickup'] == null ? null : _i(j['head_count_at_pickup']),
+        events = ((j['events'] as List?) ?? const []).map((e) => ShipmentEvent.fromJson(e as Map<String, dynamic>)).toList();
+  final String id, dealId, status, dealState, species, farmName, farmerName, buyerName;
+  final int heads;
+  final Location pickup;
+  final Location? dropoff;
+  final String? agreedFee, scheduledPickupAt, pickedUpAt, deliveredAt, shippingPermitNo, vetHealthCertNo;
+  final int? headCountAtPickup;
+  final List<ShipmentEvent> events;
+  bool get onTheRoad => status == 'in_transit' || status == 'picked_up';
 }

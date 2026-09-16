@@ -139,6 +139,7 @@ Backend
 
 Mobile (Flutter, Android first; iOS added 15 Sep 2026 when the owner said iPhone matters, and verified only by a macOS CI job until a Mac and an Apple Developer account exist)
 - Screens: sign in, code, profile, farmer registration, price board, my herd, lot form, Me. Match the wireframes; reuse the palette and 44px targets. (Built 15 Sep 2026 in `mobile/`, plus Ibenta and Deals from Phases 2 and 3 since the API already had them. Toolchain installed on the development machine the same day; see `mobile/README.md`.)
+- All three roles in the one app, not the farmer alone. (Built 16 Sep 2026 after the owner opened the app and found no way to say they were a buyer or a hauler: a role picker on registration, tabs that follow the roles the person holds, Bilhin and the offer sheet for buyers, the buyer's half of a deal including the deposit link and the delivery count, Trabaho and Biyahe for haulers with the pickup checklist and position sharing. A second role can be taken on later under Ako.)
 - Offline store for board and herd, sync queue, conflict message when If-Match fails. (Partly built: the board is cached on the phone and shown when offline. The herd sync queue and the `POST /sync` path are not built.)
 - Filipino and English string files, language switch on the profile step. (Language switch built; strings are still inline, not in .arb files.)
 - Crash reporting and analytics events: board opened, price viewed with level, lot saved, sync completed.

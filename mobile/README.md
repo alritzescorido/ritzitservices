@@ -1,6 +1,6 @@
 # Presyo ng Hayop, mobile app (Flutter)
 
-The farmer app from `docs/wireframes/`, one Dart codebase for Android and iOS. Phase 1 of `docs/development-plan.md`. Buyers and haulers use `web-app/` until their screens are added here.
+The app from `docs/wireframes/`, one Dart codebase for Android and iOS, covering all three roles: farmer, buyer and hauler. Phase 1 of `docs/development-plan.md`. It is the same ground as `web-app/`, which stays the way in for anyone who would rather not install anything.
 
 It talks only to the API in `api/` through `docs/api/openapi.yaml`. Every price it shows carries its source, sample size and location, because a bare number is a defect in the contract's words.
 
@@ -48,12 +48,17 @@ Until a Mac is available, iPhone users open `web-app/` in Safari and add it to t
 | Tab | Wireframe | What it does |
 |---|---|---|
 | Sign in | Signin, OtpCode | Mobile number, 6-digit code, resend timer, API address under Server settings |
-| Register | RegisterFarmer | Name, language, farm with a two-step location picker (town, then barangay), farm type, barangay clearance and ID by camera |
+| Register | RegisterFarmer, RegisterBuyer, RegisterHauler | Name, language, and the role. A farmer adds a farm with a two-step location picker (town, then barangay) and a farm type; a buyer has nothing more to set up; a hauler gives a plate, a vehicle and a capacity. The documents asked for follow the role |
 | Presyo | Main | Running price per weight class, source and sample size on every row, 14-day sparkline, 30-day change, pull to refresh. Last board cached on the phone for the field |
 | Hayop | Herd | Farms and lots; add a farm, add a lot with heads, average weight and a camera photo |
 | Ibenta | Listing | Post a lot against the board; accept, counter or decline each offer |
-| Deals | Deal | Agreed figures, deposit line, hauler progress, confirm the payment arrived, dispute, cancel, rate, timeline |
-| Ako | Profile | Verification status, documents with review notes, payout account, language, sign out |
+| Bilhin | BuyerBrowse, BuyerOffer | What is for sale, each asking price beside the board price so a buyer can see whether it is dear; an offer carries heads, a pickup day, whether a hauler is wanted and where to deliver |
+| Trabaho | HaulJobs | Booked deals wanting a truck, soonest pickup first, with a "fits my truck" filter; take one with your fee and a pickup time |
+| Biyahe | HaulPickup, HaulTransit | The pickup checklist that gates the start of a trip (shipping permit number, vet certificate number, head count, a photo of the load), position sharing every two minutes, checkpoint, delay and problem pings, hand-over |
+| Deals | Deal | Both sides of it. Agreed figures, deposit line, hauler progress and the timeline for everyone; a farmer confirms the payment arrived; a buyer pays the deposit through GCash, Maya or QR Ph, confirms what arrived and records the balance |
+| Ako | Profile | Verification status, documents with review notes, payout account (farmers), truck (haulers), taking on another role, language, sign out |
+
+Which tabs appear follows the roles the person holds, merged when there is more than one: a farmer who also buys sees Presyo, Hayop, Ibenta, Deals, Bilhin and Ako, with Presyo and Deals not repeated. `tabKeysFor` in `lib/screens/shell.dart` is that rule, and a test pins it.
 
 ## Layout
 
@@ -65,6 +70,10 @@ Until a Mac is available, iPhone users open `web-app/` in Safari and add it to t
 | `lib/ui.dart` | Theme and shared widgets, same palette as the console and web app |
 | `lib/screens/` | One file per screen |
 
+## Location
+
+Only the hauler screens ask for it, and only while a trip is running: Biyahe stamps the pickup and the hand-over, and shares a position every two minutes so the farmer and the buyer can follow the truck. A refused permission does not block the trip; the checklist and the hand-over still work, nobody can follow the truck. The permissions are declared in `android/app/src/main/AndroidManifest.xml` and `ios/Runner/Info.plist`.
+
 ## Not built yet
 
-Offline queue and `POST /sync` for herd edits (the board is cached, edits are not), buyer and hauler screens, push notifications, Filipino and English string files (labels are inline today), release signing, the deposit payment link for buyers.
+Offline queue and `POST /sync` for herd edits (the board is cached, edits are not), push notifications, Filipino and English string files (labels are inline today), release signing, a map of a trip in progress (positions are recorded and listed, not drawn).

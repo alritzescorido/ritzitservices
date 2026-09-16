@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:presyo/api/client.dart';
 import 'package:presyo/api/models.dart';
+import 'package:presyo/screens/shell.dart';
 import 'package:presyo/ui.dart';
 
 void main() {
@@ -68,5 +69,41 @@ void main() {
     expect(r.sampleCount, 7);
     expect(r.change30d, 2.5);
     expect(r.sparkline, [178.0, null, 180.0]);
+  });
+
+  test('tabs follow the roles a person actually has', () {
+    expect(tabKeysFor(['farmer']), ['board', 'herd', 'sell', 'deals', 'me']);
+    expect(tabKeysFor(['buyer']), ['board', 'market', 'deals', 'me']);
+    expect(tabKeysFor(['hauler']), ['board', 'jobs', 'trips', 'me']);
+    // Two roles merge, and the tabs they share appear once.
+    expect(tabKeysFor(['buyer', 'farmer']), ['board', 'herd', 'sell', 'deals', 'market', 'me']);
+    // An admin with no trade role still gets somewhere to land.
+    expect(tabKeysFor(['admin']), ['board', 'me']);
+  });
+
+  test('roles are ordered for the tab bar whatever order the API sends', () {
+    final u = User.fromJson({'id': 'u1', 'phone_masked': '·1234', 'full_name': 'Ana', 'roles': ['hauler', 'farmer'], 'verification': 'verified'});
+    expect(u.tradeRoles, ['farmer', 'hauler']);
+    expect(u.isHauler, isTrue);
+    expect(u.isBuyer, isFalse);
+  });
+
+  test('a shipment knows when it is on the road', () {
+    Shipment at(String status) => Shipment.fromJson({
+          'id': 's1',
+          'deal_id': 'd1',
+          'status': status,
+          'deal_state': 'in_transit',
+          'species': 'hog',
+          'heads': 12,
+          'farm_name': 'Maligaya',
+          'pickup': {'psgc_code': '1206319014', 'name': 'Poblacion', 'level': 'barangay'},
+          'agreed_fee': '3500.00',
+          'events': [],
+        });
+    expect(at('assigned').onTheRoad, isFalse);
+    expect(at('in_transit').onTheRoad, isTrue);
+    expect(at('delivered').onTheRoad, isFalse);
+    expect(at('in_transit').heads, 12);
   });
 }

@@ -99,3 +99,21 @@ The commission rate and the ID requirement moved out of the environment and into
 A bug the tests caught: `z.coerce.boolean()` is `Boolean(v)`, so a setting stored as the text "false" read back as true and could never be switched off. Booleans are now parsed by word.
 
 Checks: 56 API e2e tests across 9 suites, contract lint clean, console and phone app lint, tests and build green, Flutter analyzer clean. Migrations 0005 and 0006 applied to the demo database.
+
+## 2026-09-16 (later): the app covers all three roles
+
+The owner opened the app on the emulator and said: "in app emulator i dont see iam farmer buyer or hauler." They were right. The Flutter app had been built farmer-only, with the role hard-coded at registration, while `web-app/` had covered all three since Phase 3. Anyone who was not a farmer had to be told to use a browser instead, which is not an answer for a hauler standing at a farm gate.
+
+What was built, mirroring the web app screen for screen:
+
+- **The role is chosen, not assumed.** Registration asks farmer, buyer or hauler, and the fields follow: a farm and barangay for a farmer, nothing extra for a buyer, a plate, vehicle and capacity for a hauler. The documents asked for follow the role too, and an admin can still turn the requirement off.
+- **Tabs follow the person.** `tabKeysFor` merges the tab sets of whatever roles someone holds, so a farmer who also buys sees Presyo, Hayop, Ibenta, Deals, Bilhin and Ako, with Presyo and Deals not repeated. A test pins the merge.
+- **Bilhin** lists what is for sale with each asking price beside the board price, and the offer sheet carries heads, a pickup day, whether a hauler is wanted and where to deliver.
+- **The buyer's half of a deal**: pay the booking deposit through the GCash, Maya or QR Ph link, confirm what actually arrived (the count, and the weight when the price is per kilo, which is what sets the final figure), then record the balance paid to the farmer.
+- **Trabaho** shows booked deals wanting a truck with a "fits my truck" filter, and takes one with a fee and a pickup time.
+- **Biyahe** holds the checklist that gates the start of a trip: the LGU shipping permit number, the veterinary health certificate number, the head count and a photo of the load. Nothing starts without all four, on the phone and again on the server. On the road it shares a position every two minutes and can flag a checkpoint, a delay or a problem, then hands over.
+- Taking on a second role later is possible under Ako, which the web app cannot do; a hauler also sets their truck there.
+
+Checks: Flutter analyzer clean, 9 unit tests green (three new: the tab merge, the role ordering, and a shipment knowing when it is on the road), a debug APK built and installed. Every endpoint the new screens call was exercised against the running demo API as the demo buyer and the demo hauler, confirming that each field the models read is actually sent.
+
+**What could not be checked, and why.** The emulator on this machine no longer paints Flutter pixels: the widget and render trees are correct with real sizes, no Dart exception is thrown, and the Android launcher screenshots fine, but the app's surface comes back empty. The same blank screen reproduces on the previous commit's build, so it is the environment and not the change; host GPU, software GPU, Impeller and Skia all behave the same way. The screens therefore have not been seen running. Given that four defects last time were invisible to every check except running the app, this is a real gap, and the app should be opened on a physical phone or through Android Studio's own emulator window before anyone relies on it.

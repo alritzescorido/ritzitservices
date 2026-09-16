@@ -29,6 +29,7 @@ class MeScreen extends StatefulWidget {
 class _MeScreenState extends State<MeScreen> {
   List<UserDocument> _docs = const [];
   PayoutAccount? _payout;
+  HaulerProfile? _truck;
   bool _busy = false;
 
   @override
@@ -41,10 +42,12 @@ class _MeScreenState extends State<MeScreen> {
     try {
       final docs = await Api.documents();
       final payout = widget.user.isFarmer ? await Api.payoutAccount() : null;
+      final truck = widget.user.isHauler ? await Api.haulerProfile() : null;
       if (mounted) {
         setState(() {
           _docs = docs;
           _payout = payout;
+          _truck = truck;
         });
       }
     } catch (e) {
@@ -111,10 +114,71 @@ class _MeScreenState extends State<MeScreen> {
     }
   }
 
+  Future<void> _setTruck() async {
+    final t = _truck;
+    final plate = TextEditingController(text: t?.vehiclePlate ?? '');
+    final type = TextEditingController(text: t?.vehicleType ?? 'Elf truck');
+    final cap = TextEditingController(text: '${t?.capacityHeads ?? 10}');
+    final rate = TextEditingController(text: t?.ratePerHead ?? '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aking trak'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Muted('Buyers see the plate and the capacity when you take a job. The rate only fills in your fee; you can change it per job.'),
+          const SizedBox(height: 10),
+          TextField(controller: plate, textCapitalization: TextCapitalization.characters, decoration: const InputDecoration(labelText: 'Plate', hintText: 'NEB 4521')),
+          const SizedBox(height: 10),
+          TextField(controller: type, decoration: const InputDecoration(labelText: 'Vehicle')),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(child: TextField(controller: cap, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Capacity, heads'))),
+            const SizedBox(width: 10),
+            Expanded(child: TextField(controller: rate, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Rate per head, ₱'))),
+          ]),
+        ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save'))],
+      ),
+    );
+    if (ok != true || plate.text.trim().length < 3) return;
+    setState(() => _busy = true);
+    try {
+      await Api.putHaulerProfile({
+        'vehicle_plate': plate.text.trim().toUpperCase(),
+        'vehicle_type': type.text.trim().isEmpty ? 'truck' : type.text.trim(),
+        'capacity_heads': int.tryParse(cap.text) ?? 1,
+        'rate_per_head': rate.text.trim().isEmpty ? null : double.parse(rate.text).toStringAsFixed(2),
+      });
+      await _load();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Adding a role is what turns a farmer into a buyer too: the new tabs appear
+  /// as soon as the token is rotated, which onReload does.
+  Future<void> _addRole(String role) async {
+    setState(() => _busy = true);
+    try {
+      await Api.addRole(role);
+      await widget.onReload();
+      await _load();
+      if (mounted) showNote(context, 'Added. Your new tabs are at the bottom.');
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final u = widget.user;
     final p = _payout;
+    final t = _truck;
+    final missingRoles = const ['farmer', 'buyer', 'hauler'].where((r) => !u.roles.contains(r)).toList();
     return Scaffold(
       appBar: AppBar(title: Text(u.fullName)),
       body: ListView(
@@ -160,6 +224,29 @@ class _MeScreenState extends State<MeScreen> {
                 if (p == null) const Muted('Released deposits are sent here. Add your GCash number or bank account.'),
                 const SizedBox(height: 6),
                 OutlinedButton(onPressed: _busy ? null : _setPayout, child: Text(p == null ? 'Add payout account' : 'Change')),
+              ]),
+            ),
+          if (u.isHauler)
+            Panel(
+              title: 'Aking trak',
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (t != null) Text('${t.vehicleType} ${t.vehiclePlate} · up to ${t.capacityHeads} heads${t.ratePerHead != null ? ' · ${money(t.ratePerHead)} per head' : ''}', style: const TextStyle(fontSize: 14)),
+                if (t == null) const Muted('Add your truck before you can take a hauling job.'),
+                const SizedBox(height: 6),
+                OutlinedButton(onPressed: _busy ? null : _setTruck, child: Text(t == null ? 'Add my truck' : 'Change')),
+              ]),
+            ),
+          if (missingRoles.isNotEmpty)
+            Panel(
+              title: 'Ako rin ay',
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const Muted('You can do more than one thing here. Adding a role keeps everything you already have.'),
+                const SizedBox(height: 6),
+                for (final r in missingRoles)
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _addRole(r),
+                    child: Text(r == 'farmer' ? 'Farmer / magsasaka' : r == 'buyer' ? 'Buyer / viajero' : 'Hauler / may truck'),
+                  ),
               ]),
             ),
           Panel(

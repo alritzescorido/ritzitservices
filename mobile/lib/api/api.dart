@@ -66,6 +66,38 @@ class Api {
   static Future<void> dispute(String id, String reason, String details) => c.call('POST', '/deals/$id/dispute', body: {'reason': reason, 'details': details}, idempotent: true);
   static Future<void> rate(String id, int score) => c.call('POST', '/deals/$id/ratings', body: {'score': score, 'comment': null});
 
+  // Marketplace, buyer side
+  static Future<List<Listing>> browse({String? species, String? provinceCode}) async =>
+      _items(await c.call('GET', '/listings', query: {'species': species ?? '', 'province_code': provinceCode ?? '', 'limit': '50'})).map(Listing.fromJson).toList();
+  static Future<Offer> makeOffer(String listingId, Map<String, dynamic> input) async => Offer.fromJson(_m(await c.call('POST', '/listings/$listingId/offers', body: input, idempotent: true)));
+  static Future<Deal> deliverDeal(String id, Map<String, dynamic> input) async => Deal.fromJson(_m(await c.call('POST', '/deals/$id/deliver', body: input, idempotent: true)));
+  static Future<Deal> payDeal(String id, String method, String? reference) async =>
+      Deal.fromJson(_m(await c.call('POST', '/deals/$id/pay', body: {'method': method, 'reference': reference}, idempotent: true)));
+  static Future<Deposit> deposit(String dealId) async => Deposit.fromJson(_m(await c.call('GET', '/deals/$dealId/deposit')));
+  static Future<Deposit> refreshCheckout(String dealId) async => Deposit.fromJson(_m(await c.call('POST', '/deals/$dealId/deposit/checkout', idempotent: true)));
+
+  // Logistics, hauler side
+  static Future<HaulerProfile?> haulerProfile() async {
+    try {
+      return HaulerProfile.fromJson(_m(await c.call('GET', '/haulers/me')));
+    } on ApiException catch (e) {
+      if (e.status == 404) return null;
+      rethrow;
+    }
+  }
+  static Future<HaulerProfile> putHaulerProfile(Map<String, dynamic> input) async => HaulerProfile.fromJson(_m(await c.call('PUT', '/haulers/me', body: input)));
+  static Future<List<HaulJob>> haulJobs({bool fitsMyTruck = false}) async =>
+      _items(await c.call('GET', '/haul-jobs', query: {'fits_my_truck': fitsMyTruck ? 'true' : ''})).map(HaulJob.fromJson).toList();
+  static Future<Shipment> acceptHaulJob(String dealId, String fee, String scheduledPickupAt) async =>
+      Shipment.fromJson(_m(await c.call('POST', '/haul-jobs/$dealId/accept', body: {'agreed_fee': fee, 'scheduled_pickup_at': scheduledPickupAt}, idempotent: true)));
+  static Future<List<Shipment>> shipments() async => _items(await c.call('GET', '/shipments')).map(Shipment.fromJson).toList();
+  static Future<Shipment> shipment(String id) async => Shipment.fromJson(_m(await c.call('GET', '/shipments/$id')));
+  static Future<Shipment> startTrip(String id, Map<String, dynamic> input) async => Shipment.fromJson(_m(await c.call('POST', '/shipments/$id/start', body: input, idempotent: true)));
+  static Future<void> ping(String id, double lat, double lng, {String kind = 'position', String? note}) =>
+      c.call('POST', '/shipments/$id/ping', body: {'geo': {'lat': lat, 'lng': lng}, 'kind': kind, 'note': note});
+  static Future<Shipment> markDelivered(String id, Map<String, dynamic> input) async => Shipment.fromJson(_m(await c.call('POST', '/shipments/$id/delivered', body: input, idempotent: true)));
+  static Future<Shipment> cancelShipment(String id, String reason) async => Shipment.fromJson(_m(await c.call('POST', '/shipments/$id/cancel', body: {'reason': reason}, idempotent: true)));
+
   // Payments
   static Future<PayoutAccount?> payoutAccount() async {
     try {

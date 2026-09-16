@@ -70,6 +70,8 @@
 	<string>Para kumuha ng litrato ng inyong mga hayop at mga dokumento. Camera access is used to photograph your animals and your documents.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Para pumili ng litrato ng inyong mga hayop at mga dokumento. Photo access is used to attach pictures of your animals and your documents.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Para makita ng magsasaka at ng bumili kung nasaan na ang trak habang naglalakbay. Used while a trip is running so the farmer and the buyer can follow the truck.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Para kumonekta sa server ng Presyo ng Hayop sa parehong Wi-Fi habang sinusubukan ang app. Used to reach a Presyo ng Hayop server on the same Wi-Fi while testing.</string>
 	<!-- Development only: the pilot API runs over plain HTTP on a local address.
