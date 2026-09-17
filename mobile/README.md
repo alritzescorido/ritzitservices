@@ -19,6 +19,19 @@ flutter run                        # on a connected phone with USB debugging on
 
 Installed 15 Sep 2026 on the development machine: Flutter stable at `C:\src\flutter` (git clone, not winget), Temurin JDK 17 at `C:\src\jdk17`, Android SDK at `C:\src\android-sdk` through the command-line tools with platforms 35 and 36. `flutter doctor` is green except Visual Studio, which only matters for Windows desktop builds.
 
+## On the development emulator
+
+The `presyo` emulator on the development machine renders **release and profile** builds correctly and **debug** builds as a blank off-white page. That is the emulator, not the app: ordinary Android apps render fine and the widget and render trees are correct throughout. To look at the app there:
+
+```bash
+flutter build apk --release --target-platform android-x64
+adb uninstall ph.presyonghayop.presyo        # signatures differ from the debug build
+adb install build/app/outputs/flutter-apk/app-release.apk
+adb shell am start -n ph.presyonghayop.presyo/.MainActivity
+```
+
+There is no hot reload that way, so get the code right before building. Debug builds stay fine for `flutter analyze`, `flutter test` and a real phone. Do not spend time on GPU modes: host, software, swangle, swiftshader, Impeller and Skia all behave the same.
+
 ## Put it on a phone
 
 1. Build the debug APK with the command above.
